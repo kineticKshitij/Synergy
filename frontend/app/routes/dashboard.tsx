@@ -89,10 +89,10 @@ function DashboardContent() {
                             <div className="flex items-center gap-3 pl-4 border-l border-gray-200 dark:border-gray-700">
                                 <div className="text-right">
                                     <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                                        {stats?.user.full_name || user?.username || 'User'}
+                                        {user?.username || 'User'}
                                     </p>
                                     <p className="text-xs text-gray-500 dark:text-gray-400">
-                                        {stats?.user.email || user?.email}
+                                        {user?.email || 'user@example.com'}
                                     </p>
                                 </div>
                                 <button
@@ -113,7 +113,7 @@ function DashboardContent() {
                 {/* Welcome Section */}
                 <div className="mb-8">
                     <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-                        Welcome back, {stats?.user.full_name || user?.username || 'User'}!
+                        Welcome back, {user?.username || 'User'}!
                     </h2>
                     <p className="text-gray-600 dark:text-gray-400">
                         Here's what's happening with your business today.
@@ -296,7 +296,7 @@ function StatCard({
 // Quick Action Button Component
 function QuickActionButton({ label, icon, onClick }: { label: string; icon: React.ReactNode; onClick?: () => void }) {
     return (
-        <button 
+        <button
             onClick={onClick}
             className="flex flex-col items-center gap-2 p-4 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition-colors"
         >
