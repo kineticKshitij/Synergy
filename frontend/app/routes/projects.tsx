@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router';
-import { projectService } from '../services/project.service';
-import ProtectedRoute from '../components/ProtectedRoute';
+import { projectService } from '~/services/project.service';
+import { ProtectedRoute } from '~/components/ProtectedRoute';
 
 interface Project {
   id: number;

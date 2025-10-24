@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { projectService } from '../services/project.service';
+import { projectService } from '~/services/project.service';
 
 export default function NewProject() {
   const navigate = useNavigate();
