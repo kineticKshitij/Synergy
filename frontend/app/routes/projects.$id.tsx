@@ -114,6 +114,27 @@ function ProjectDetailsContent() {
         }
     };
 
+    const handleMarkTaskComplete = async (taskId: number, e: React.MouseEvent) => {
+        e.stopPropagation(); // Prevent opening the modal
+        try {
+            await projectService.updateTask(taskId, { status: 'done' });
+            await loadTasks();
+            await loadProject();
+        } catch (error) {
+            console.error('Failed to mark task as complete:', error);
+        }
+    };
+
+    const handleMarkProjectComplete = async () => {
+        if (!project) return;
+        try {
+            await projectService.updateProject(project.id, { status: 'completed', progress: 100 });
+            await loadProject();
+        } catch (error) {
+            console.error('Failed to mark project as complete:', error);
+        }
+    };
+
     const openTaskModal = (task?: Task) => {
         setEditingTask(task || null);
         setIsTaskModalOpen(true);
@@ -192,304 +213,323 @@ function ProjectDetailsContent() {
             {/* Header */}
             <div className="border-b border-gray-800 pt-20">
                 <div className="max-w-7xl mx-auto px-6 py-6">
-                            <div className="flex items-center justify-between mb-4">
-                                <Link
-                                    to="/projects"
-                                    className="text-gray-400 hover:text-white transition-colors flex items-center gap-2"
+                    <div className="flex items-center justify-between mb-4">
+                        <Link
+                            to="/projects"
+                            className="text-gray-400 hover:text-white transition-colors flex items-center gap-2"
+                        >
+                            ← Back to Projects
+                        </Link>
+                        <div className="flex gap-3">
+                            {project.status !== 'completed' && (
+                                <button
+                                    onClick={handleMarkProjectComplete}
+                                    className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition-colors"
                                 >
-                                    ← Back to Projects
-                                </Link>
-                                <div className="flex gap-3">
-                                    <button
-                                        onClick={() => navigate(`/projects/${id}/edit`)}
-                                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
-                                    >
-                                        ✏️ Edit
-                                    </button>
-                                    <button className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors">
-                                        🗑️ Delete
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div className="flex items-start justify-between">
-                                <div className="flex-1">
-                                    <h1 className="text-4xl font-bold mb-3">{project.name}</h1>
-                                    <p className="text-gray-400 text-lg mb-4">{project.description}</p>
-                                    <div className="flex items-center gap-4">
-                                        {getStatusBadge(project.status)}
-                                        <span className={`font-medium ${getPriorityColor(project.priority)}`}>
-                                            Priority: {project.priority.charAt(0).toUpperCase() + project.priority.slice(1)}
-                                        </span>
-                                        {project.budget && (
-                                            <span className="text-green-400 font-medium">
-                                                💰 ${parseFloat(project.budget).toLocaleString()}
-                                            </span>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Progress Bar */}
-                            <div className="mt-6">
-                                <div className="flex items-center justify-between text-sm mb-2">
-                                    <span className="text-gray-400">Overall Progress</span>
-                                    <span className="text-blue-400 font-semibold">{project.progress}%</span>
-                                </div>
-                                <div className="w-full bg-gray-800 rounded-full h-3">
-                                    <div
-                                        className="bg-blue-500 h-3 rounded-full transition-all"
-                                        style={{ width: `${project.progress}%` }}
-                                    ></div>
-                                </div>
-                            </div>
+                                    ✅ Mark as Completed
+                                </button>
+                            )}
+                            <button
+                                onClick={() => navigate(`/projects/${id}/edit`)}
+                                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                            >
+                                ✏️ Edit
+                            </button>
+                            <button className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors">
+                                🗑️ Delete
+                            </button>
                         </div>
                     </div>
 
-                    {/* Tabs */}
-                    <div className="border-b border-gray-800">
-                        <div className="max-w-7xl mx-auto px-6">
-                            <div className="flex gap-8">
-                                {['overview', 'tasks', 'team', 'activity'].map((tab) => (
-                                    <button
-                                        key={tab}
-                                        onClick={() => setActiveTab(tab as any)}
-                                        className={`py-4 px-2 border-b-2 transition-colors ${activeTab === tab
-                                            ? 'border-blue-500 text-white'
-                                            : 'border-transparent text-gray-400 hover:text-white'
-                                            }`}
-                                    >
-                                        {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Content */}
-                    <div className="max-w-7xl mx-auto px-6 py-8">
-                        {activeTab === 'overview' && (
-                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                                {/* Project Info */}
-                                <div className="lg:col-span-2 space-y-6">
-                                    <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-6">
-                                        <h3 className="text-xl font-semibold mb-4">Project Information</h3>
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div>
-                                                <p className="text-gray-400 text-sm mb-1">Owner</p>
-                                                <p className="font-medium">{project.owner.username}</p>
-                                            </div>
-                                            <div>
-                                                <p className="text-gray-400 text-sm mb-1">Team Members</p>
-                                                <p className="font-medium">{project.team_members.length + 1}</p>
-                                            </div>
-                                            {project.start_date && (
-                                                <div>
-                                                    <p className="text-gray-400 text-sm mb-1">Start Date</p>
-                                                    <p className="font-medium">{new Date(project.start_date).toLocaleDateString()}</p>
-                                                </div>
-                                            )}
-                                            {project.end_date && (
-                                                <div>
-                                                    <p className="text-gray-400 text-sm mb-1">End Date</p>
-                                                    <p className="font-medium">{new Date(project.end_date).toLocaleDateString()}</p>
-                                                </div>
-                                            )}
-                                            <div>
-                                                <p className="text-gray-400 text-sm mb-1">Created</p>
-                                                <p className="font-medium">{new Date(project.created_at).toLocaleDateString()}</p>
-                                            </div>
-                                            <div>
-                                                <p className="text-gray-400 text-sm mb-1">Last Updated</p>
-                                                <p className="font-medium">{new Date(project.updated_at).toLocaleDateString()}</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Stats */}
-                                <div className="space-y-6">
-                                    <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-6">
-                                        <h3 className="text-xl font-semibold mb-4">Statistics</h3>
-                                        <div className="space-y-4">
-                                            <div className="flex justify-between items-center">
-                                                <span className="text-gray-400">Total Tasks</span>
-                                                <span className="text-2xl font-bold">{tasks.length}</span>
-                                            </div>
-                                            <div className="flex justify-between items-center">
-                                                <span className="text-gray-400">Completed</span>
-                                                <span className="text-2xl font-bold text-green-400">
-                                                    {tasks.filter(t => t.status === 'done').length}
-                                                </span>
-                                            </div>
-                                            <div className="flex justify-between items-center">
-                                                <span className="text-gray-400">In Progress</span>
-                                                <span className="text-2xl font-bold text-blue-400">
-                                                    {tasks.filter(t => t.status === 'in_progress').length}
-                                                </span>
-                                            </div>
-                                            <div className="flex justify-between items-center">
-                                                <span className="text-gray-400">To Do</span>
-                                                <span className="text-2xl font-bold text-gray-400">
-                                                    {tasks.filter(t => t.status === 'todo').length}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {activeTab === 'tasks' && (
-                            <div>
-                                <div className="flex justify-between items-center mb-6">
-                                    <h2 className="text-2xl font-bold">Tasks</h2>
-                                    <button
-                                        onClick={() => openTaskModal()}
-                                        className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors"
-                                    >
-                                        ➕ New Task
-                                    </button>
-                                </div>
-
-                                {tasks.length === 0 ? (
-                                    <div className="text-center py-12 bg-gray-800/50 border border-gray-700 rounded-lg">
-                                        <div className="text-6xl mb-4">📋</div>
-                                        <h3 className="text-xl font-semibold mb-2">No tasks yet</h3>
-                                        <p className="text-gray-400 mb-6">Get started by creating your first task</p>
-                                        <button
-                                            onClick={() => openTaskModal()}
-                                            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors"
-                                        >
-                                            Create Task
-                                        </button>
-                                    </div>
-                                ) : (
-                                    <div className="space-y-3">
-                                        {tasks.map((task) => (
-                                            <div
-                                                key={task.id}
-                                                onClick={() => openTaskModal(task)}
-                                                className="bg-gray-800/50 border border-gray-700 rounded-lg p-4 hover:border-blue-500/50 transition-colors cursor-pointer"
-                                            >
-                                                <div className="flex items-start justify-between">
-                                                    <div className="flex-1">
-                                                        <div className="flex items-center gap-3 mb-2">
-                                                            <h4 className="text-lg font-semibold">{task.title}</h4>
-                                                            {getStatusBadge(task.status)}
-                                                        </div>
-                                                        {task.description && (
-                                                            <p className="text-gray-400 text-sm mb-3">{task.description}</p>
-                                                        )}
-                                                        <div className="flex items-center gap-4 text-sm">
-                                                            {task.assigned_to && (
-                                                                <span className="text-gray-400">
-                                                                    👤 {task.assigned_to.username}
-                                                                </span>
-                                                            )}
-                                                            {task.due_date && (
-                                                                <span className="text-gray-400">
-                                                                    📅 {new Date(task.due_date).toLocaleDateString()}
-                                                                </span>
-                                                            )}
-                                                            <span className={`${getPriorityColor(task.priority)}`}>
-                                                                {task.priority.toUpperCase()}
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                    <button
-                                                        className="ml-4 text-gray-400 hover:text-white transition-colors"
-                                                        title="Edit task"
-                                                    >
-                                                        ✏️
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
+                    <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                            <h1 className="text-4xl font-bold mb-3">{project.name}</h1>
+                            <p className="text-gray-400 text-lg mb-4">{project.description}</p>
+                            <div className="flex items-center gap-4">
+                                {getStatusBadge(project.status)}
+                                <span className={`font-medium ${getPriorityColor(project.priority)}`}>
+                                    Priority: {project.priority.charAt(0).toUpperCase() + project.priority.slice(1)}
+                                </span>
+                                {project.budget && (
+                                    <span className="text-green-400 font-medium">
+                                        💰 ${parseFloat(project.budget).toLocaleString()}
+                                    </span>
                                 )}
                             </div>
-                        )}
+                        </div>
+                    </div>
 
-                        {activeTab === 'team' && (
-                            <div>
-                                <div className="flex justify-between items-center mb-6">
-                                    <h2 className="text-2xl font-bold">Team Members</h2>
-                                    <button className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors">
-                                        ➕ Add Member
-                                    </button>
-                                </div>
+                    {/* Progress Bar */}
+                    <div className="mt-6">
+                        <div className="flex items-center justify-between text-sm mb-2">
+                            <span className="text-gray-400">Overall Progress</span>
+                            <span className="text-blue-400 font-semibold">{project.progress}%</span>
+                        </div>
+                        <div className="w-full bg-gray-800 rounded-full h-3">
+                            <div
+                                className="bg-blue-500 h-3 rounded-full transition-all"
+                                style={{ width: `${project.progress}%` }}
+                            ></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                    {/* Owner */}
-                                    <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-6">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-xl font-bold">
-                                                {project.owner.username.charAt(0).toUpperCase()}
-                                            </div>
-                                            <div>
-                                                <p className="font-semibold">{project.owner.username}</p>
-                                                <p className="text-sm text-gray-400">{project.owner.email}</p>
-                                                <span className="inline-block mt-1 px-2 py-0.5 bg-purple-500/20 text-purple-400 text-xs rounded">
-                                                    Owner
-                                                </span>
-                                            </div>
-                                        </div>
+            {/* Tabs */}
+            <div className="border-b border-gray-800">
+                <div className="max-w-7xl mx-auto px-6">
+                    <div className="flex gap-8">
+                        {['overview', 'tasks', 'team', 'activity'].map((tab) => (
+                            <button
+                                key={tab}
+                                onClick={() => setActiveTab(tab as any)}
+                                className={`py-4 px-2 border-b-2 transition-colors ${activeTab === tab
+                                    ? 'border-blue-500 text-white'
+                                    : 'border-transparent text-gray-400 hover:text-white'
+                                    }`}
+                            >
+                                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            {/* Content */}
+            <div className="max-w-7xl mx-auto px-6 py-8">
+                {activeTab === 'overview' && (
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        {/* Project Info */}
+                        <div className="lg:col-span-2 space-y-6">
+                            <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-6">
+                                <h3 className="text-xl font-semibold mb-4">Project Information</h3>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <p className="text-gray-400 text-sm mb-1">Owner</p>
+                                        <p className="font-medium">{project.owner.username}</p>
                                     </div>
+                                    <div>
+                                        <p className="text-gray-400 text-sm mb-1">Team Members</p>
+                                        <p className="font-medium">{project.team_members.length + 1}</p>
+                                    </div>
+                                    {project.start_date && (
+                                        <div>
+                                            <p className="text-gray-400 text-sm mb-1">Start Date</p>
+                                            <p className="font-medium">{new Date(project.start_date).toLocaleDateString()}</p>
+                                        </div>
+                                    )}
+                                    {project.end_date && (
+                                        <div>
+                                            <p className="text-gray-400 text-sm mb-1">End Date</p>
+                                            <p className="font-medium">{new Date(project.end_date).toLocaleDateString()}</p>
+                                        </div>
+                                    )}
+                                    <div>
+                                        <p className="text-gray-400 text-sm mb-1">Created</p>
+                                        <p className="font-medium">{new Date(project.created_at).toLocaleDateString()}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-gray-400 text-sm mb-1">Last Updated</p>
+                                        <p className="font-medium">{new Date(project.updated_at).toLocaleDateString()}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
 
-                                    {/* Team Members */}
-                                    {project.team_members.map((member: any) => (
-                                        <div key={member.id} className="bg-gray-800/50 border border-gray-700 rounded-lg p-6">
-                                            <div className="flex items-center gap-4">
-                                                <div className="w-12 h-12 bg-green-600 rounded-full flex items-center justify-center text-xl font-bold">
-                                                    {member.username.charAt(0).toUpperCase()}
+                        {/* Stats */}
+                        <div className="space-y-6">
+                            <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-6">
+                                <h3 className="text-xl font-semibold mb-4">Statistics</h3>
+                                <div className="space-y-4">
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-gray-400">Total Tasks</span>
+                                        <span className="text-2xl font-bold">{tasks.length}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-gray-400">Completed</span>
+                                        <span className="text-2xl font-bold text-green-400">
+                                            {tasks.filter(t => t.status === 'done').length}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-gray-400">In Progress</span>
+                                        <span className="text-2xl font-bold text-blue-400">
+                                            {tasks.filter(t => t.status === 'in_progress').length}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-gray-400">To Do</span>
+                                        <span className="text-2xl font-bold text-gray-400">
+                                            {tasks.filter(t => t.status === 'todo').length}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {activeTab === 'tasks' && (
+                    <div>
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-2xl font-bold">Tasks</h2>
+                            <button
+                                onClick={() => openTaskModal()}
+                                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors"
+                            >
+                                ➕ New Task
+                            </button>
+                        </div>
+
+                        {tasks.length === 0 ? (
+                            <div className="text-center py-12 bg-gray-800/50 border border-gray-700 rounded-lg">
+                                <div className="text-6xl mb-4">📋</div>
+                                <h3 className="text-xl font-semibold mb-2">No tasks yet</h3>
+                                <p className="text-gray-400 mb-6">Get started by creating your first task</p>
+                                <button
+                                    onClick={() => openTaskModal()}
+                                    className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors"
+                                >
+                                    Create Task
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
+                                {tasks.map((task) => (
+                                    <div
+                                        key={task.id}
+                                        onClick={() => openTaskModal(task)}
+                                        className="bg-gray-800/50 border border-gray-700 rounded-lg p-4 hover:border-blue-500/50 transition-colors cursor-pointer"
+                                    >
+                                        <div className="flex items-start justify-between">
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-3 mb-2">
+                                                    <h4 className="text-lg font-semibold">{task.title}</h4>
+                                                    {getStatusBadge(task.status)}
                                                 </div>
-                                                <div>
-                                                    <p className="font-semibold">{member.username}</p>
-                                                    <p className="text-sm text-gray-400">{member.email}</p>
-                                                    <span className="inline-block mt-1 px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded">
-                                                        Member
+                                                {task.description && (
+                                                    <p className="text-gray-400 text-sm mb-3">{task.description}</p>
+                                                )}
+                                                <div className="flex items-center gap-4 text-sm">
+                                                    {task.assigned_to && (
+                                                        <span className="text-gray-400">
+                                                            👤 {task.assigned_to.username}
+                                                        </span>
+                                                    )}
+                                                    {task.due_date && (
+                                                        <span className="text-gray-400">
+                                                            📅 {new Date(task.due_date).toLocaleDateString()}
+                                                        </span>
+                                                    )}
+                                                    <span className={`${getPriorityColor(task.priority)}`}>
+                                                        {task.priority.toUpperCase()}
                                                     </span>
                                                 </div>
                                             </div>
+                                            <div className="ml-4 flex items-center gap-2">
+                                                {task.status !== 'done' && (
+                                                    <button
+                                                        onClick={(e) => handleMarkTaskComplete(task.id, e)}
+                                                        className="px-3 py-1 bg-green-600 hover:bg-green-700 rounded text-sm transition-colors"
+                                                        title="Mark as done"
+                                                    >
+                                                        ✓ Done
+                                                    </button>
+                                                )}
+                                                <button
+                                                    className="text-gray-400 hover:text-white transition-colors"
+                                                    title="Edit task"
+                                                >
+                                                    ✏️
+                                                </button>
+                                            </div>
                                         </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {activeTab === 'activity' && (
-                            <div>
-                                <h2 className="text-2xl font-bold mb-6">Activity Timeline</h2>
-                                <div className="text-center py-12 bg-gray-800/50 border border-gray-700 rounded-lg">
-                                    <div className="text-6xl mb-4">📊</div>
-                                    <h3 className="text-xl font-semibold mb-2">Activity timeline coming soon</h3>
-                                    <p className="text-gray-400">Track all project activities and changes here</p>
-                                </div>
+                                    </div>
+                                ))}
                             </div>
                         )}
                     </div>
+                )}
 
-                    {/* Task Modal */}
-                    <TaskModal
-                        isOpen={isTaskModalOpen}
-                        onClose={() => {
-                            setIsTaskModalOpen(false);
-                            setEditingTask(null);
-                        }}
-                        onSubmit={editingTask ? handleEditTask : handleCreateTask}
-                        onDelete={editingTask ? handleDeleteTask : undefined}
-                        projectId={Number(id)}
-                        task={editingTask}
-                    />
-                </div>
-                );
+                {activeTab === 'team' && (
+                    <div>
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-2xl font-bold">Team Members</h2>
+                            <button className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors">
+                                ➕ Add Member
+                            </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {/* Owner */}
+                            <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-6">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-xl font-bold">
+                                        {project.owner.username.charAt(0).toUpperCase()}
+                                    </div>
+                                    <div>
+                                        <p className="font-semibold">{project.owner.username}</p>
+                                        <p className="text-sm text-gray-400">{project.owner.email}</p>
+                                        <span className="inline-block mt-1 px-2 py-0.5 bg-purple-500/20 text-purple-400 text-xs rounded">
+                                            Owner
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Team Members */}
+                            {project.team_members.map((member: any) => (
+                                <div key={member.id} className="bg-gray-800/50 border border-gray-700 rounded-lg p-6">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-12 h-12 bg-green-600 rounded-full flex items-center justify-center text-xl font-bold">
+                                            {member.username.charAt(0).toUpperCase()}
+                                        </div>
+                                        <div>
+                                            <p className="font-semibold">{member.username}</p>
+                                            <p className="text-sm text-gray-400">{member.email}</p>
+                                            <span className="inline-block mt-1 px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded">
+                                                Member
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {activeTab === 'activity' && (
+                    <div>
+                        <h2 className="text-2xl font-bold mb-6">Activity Timeline</h2>
+                        <div className="text-center py-12 bg-gray-800/50 border border-gray-700 rounded-lg">
+                            <div className="text-6xl mb-4">📊</div>
+                            <h3 className="text-xl font-semibold mb-2">Activity timeline coming soon</h3>
+                            <p className="text-gray-400">Track all project activities and changes here</p>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Task Modal */}
+            <TaskModal
+                isOpen={isTaskModalOpen}
+                onClose={() => {
+                    setIsTaskModalOpen(false);
+                    setEditingTask(null);
+                }}
+                onSubmit={editingTask ? handleEditTask : handleCreateTask}
+                onDelete={editingTask ? handleDeleteTask : undefined}
+                projectId={Number(id)}
+                task={editingTask}
+            />
+        </div>
+    );
 }
 
-                export default function ProjectDetails() {
+export default function ProjectDetails() {
     return (
-                <ProtectedRoute>
-                    <ProjectDetailsContent />
-                </ProtectedRoute>
-                );
+        <ProtectedRoute>
+            <ProjectDetailsContent />
+        </ProtectedRoute>
+    );
 }
