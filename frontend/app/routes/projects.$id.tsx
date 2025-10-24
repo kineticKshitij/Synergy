@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router';
 import { projectService } from '~/services/project.service';
 import { ProtectedRoute } from '~/components/ProtectedRoute';
 import { TaskModal } from '~/components/TaskModal';
+import { Navbar } from '~/components/Navbar';
 
 interface Project {
     id: number;
@@ -151,10 +152,13 @@ function ProjectDetailsContent() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
-                <div className="text-center">
-                    <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-gray-700 border-t-blue-500"></div>
-                    <p className="mt-4 text-gray-400">Loading project...</p>
+            <div className="min-h-screen bg-gray-900 text-white">
+                <Navbar />
+                <div className="flex items-center justify-center pt-32">
+                    <div className="text-center">
+                        <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-gray-700 border-t-blue-500"></div>
+                        <p className="mt-4 text-gray-400">Loading project...</p>
+                    </div>
                 </div>
             </div>
         );
@@ -162,11 +166,13 @@ function ProjectDetailsContent() {
 
     if (!project) {
         return (
-            <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
-                <div className="text-center">
-                    <div className="text-6xl mb-4">😕</div>
-                    <h2 className="text-2xl font-bold mb-2">Project Not Found</h2>
-                    <p className="text-gray-400 mb-6">The project you're looking for doesn't exist.</p>
+            <div className="min-h-screen bg-gray-900 text-white">
+                <Navbar />
+                <div className="flex items-center justify-center pt-32">
+                    <div className="text-center">
+                        <div className="text-6xl mb-4">😕</div>
+                        <h2 className="text-2xl font-bold mb-2">Project Not Found</h2>
+                        <p className="text-gray-400 mb-6">The project you're looking for doesn't exist.</p>
                     <Link
                         to="/projects"
                         className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors inline-block"
@@ -180,8 +186,10 @@ function ProjectDetailsContent() {
 
     return (
         <div className="min-h-screen bg-gray-900 text-white">
+            <Navbar />
+            
             {/* Header */}
-            <div className="border-b border-gray-800">
+            <div className="border-b border-gray-800 pt-20">
                 <div className="max-w-7xl mx-auto px-6 py-6">
                     <div className="flex items-center justify-between mb-4">
                         <Link
@@ -246,8 +254,8 @@ function ProjectDetailsContent() {
                                 key={tab}
                                 onClick={() => setActiveTab(tab as any)}
                                 className={`py-4 px-2 border-b-2 transition-colors ${activeTab === tab
-                                        ? 'border-blue-500 text-white'
-                                        : 'border-transparent text-gray-400 hover:text-white'
+                                    ? 'border-blue-500 text-white'
+                                    : 'border-transparent text-gray-400 hover:text-white'
                                     }`}
                             >
                                 {tab.charAt(0).toUpperCase() + tab.slice(1)}

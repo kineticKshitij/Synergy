@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useAuth } from '~/contexts/AuthContext';
 import { ProtectedRoute } from '~/components/ProtectedRoute';
+import { Navbar } from '~/components/Navbar';
 import authService from '~/services/auth.service';
 import type { DashboardStats } from '~/services/auth.service';
 import {
@@ -64,52 +65,10 @@ function DashboardContent() {
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-            {/* Header */}
-            <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="flex justify-between items-center h-16">
-                        <div className="flex items-center gap-3">
-                            <LayoutDashboard className="w-8 h-8 text-blue-600" />
-                            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                                SynergyOS
-                            </h1>
-                        </div>
-
-                        <div className="flex items-center gap-4">
-                            <button className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
-                                <Bell className="w-5 h-5" />
-                            </button>
-                            <button
-                                onClick={() => navigate('/profile')}
-                                className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                                title="Settings"
-                            >
-                                <Settings className="w-5 h-5" />
-                            </button>
-                            <div className="flex items-center gap-3 pl-4 border-l border-gray-200 dark:border-gray-700">
-                                <div className="text-right">
-                                    <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                                        {user?.username || 'User'}
-                                    </p>
-                                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                                        {user?.email || 'user@example.com'}
-                                    </p>
-                                </div>
-                                <button
-                                    onClick={handleLogout}
-                                    className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                                    title="Logout"
-                                >
-                                    <LogOut className="w-5 h-5" />
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </header>
-
+            <Navbar />
+            
             {/* Main Content */}
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pt-24">
                 {/* Welcome Section */}
                 <div className="mb-8">
                     <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">

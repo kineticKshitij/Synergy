@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router';
 import { projectService } from '~/services/project.service';
 import { ProtectedRoute } from '~/components/ProtectedRoute';
+import { Navbar } from '~/components/Navbar';
 
 interface Project {
     id: number;
@@ -90,8 +91,10 @@ function ProjectsContent() {
 
     return (
         <div className="min-h-screen bg-gray-900 text-white">
+            <Navbar />
+            
             {/* Header */}
-            <div className="border-b border-gray-800">
+            <div className="border-b border-gray-800 pt-20">
                 <div className="max-w-7xl mx-auto px-6 py-6">
                     <div className="flex items-center justify-between">
                         <div>
