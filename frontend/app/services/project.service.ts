@@ -94,7 +94,7 @@ export const projectService = {
         const token = this.getAuthToken();
 
         const response = await fetch(`${API_URL}/projects/${id}/`, {
-            method: 'PUT',
+            method: 'PATCH',
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json',
@@ -229,7 +229,7 @@ export const projectService = {
         const token = this.getAuthToken();
 
         const response = await fetch(`${API_URL}/tasks/${id}/`, {
-            method: 'PUT',
+            method: 'PATCH',
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json',

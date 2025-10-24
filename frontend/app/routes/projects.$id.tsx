@@ -117,7 +117,9 @@ function ProjectDetailsContent() {
     const handleMarkTaskComplete = async (taskId: number, e: React.MouseEvent) => {
         e.stopPropagation(); // Prevent opening the modal
         try {
-            await projectService.updateTask(taskId, { status: 'done' });
+            await projectService.updateTask(taskId, { 
+                status: 'done'
+            });
             await loadTasks();
             await loadProject();
         } catch (error) {
@@ -128,7 +130,10 @@ function ProjectDetailsContent() {
     const handleMarkProjectComplete = async () => {
         if (!project) return;
         try {
-            await projectService.updateProject(project.id, { status: 'completed', progress: 100 });
+            await projectService.updateProject(project.id, { 
+                status: 'completed', 
+                progress: 100
+            });
             await loadProject();
         } catch (error) {
             console.error('Failed to mark project as complete:', error);
