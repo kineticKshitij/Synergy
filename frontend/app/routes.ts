@@ -11,4 +11,5 @@ export default [
     route("security", "routes/security.tsx"),
     route("projects", "routes/projects.tsx"),
     route("projects/new", "routes/projects.new.tsx"),
+    route("projects/:id", "routes/projects.$id.tsx"),
 ] satisfies RouteConfig;
