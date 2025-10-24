@@ -9,4 +9,6 @@ export default [
     route("dashboard", "routes/dashboard.tsx"),
     route("profile", "routes/profile.tsx"),
     route("security", "routes/security.tsx"),
+    route("projects", "routes/projects.tsx"),
+    route("projects/new", "routes/projects.new.tsx"),
 ] satisfies RouteConfig;
