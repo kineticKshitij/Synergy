@@ -92,7 +92,7 @@ function ProjectsContent() {
     return (
         <div className="min-h-screen bg-gray-900 text-white">
             <Navbar />
-            
+
             {/* Header */}
             <div className="border-b border-gray-800 pt-20">
                 <div className="max-w-7xl mx-auto px-6 py-6">
