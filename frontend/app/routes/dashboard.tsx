@@ -89,10 +89,10 @@ function DashboardContent() {
                             <div className="flex items-center gap-3 pl-4 border-l border-gray-200 dark:border-gray-700">
                                 <div className="text-right">
                                     <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                                        {user?.first_name} {user?.last_name}
+                                        {stats?.user.full_name || user?.username || 'User'}
                                     </p>
                                     <p className="text-xs text-gray-500 dark:text-gray-400">
-                                        {user?.email}
+                                        {stats?.user.email || user?.email}
                                     </p>
                                 </div>
                                 <button
@@ -113,7 +113,7 @@ function DashboardContent() {
                 {/* Welcome Section */}
                 <div className="mb-8">
                     <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-                        Welcome back, {user?.first_name}!
+                        Welcome back, {stats?.user.full_name || user?.username || 'User'}!
                     </h2>
                     <p className="text-gray-600 dark:text-gray-400">
                         Here's what's happening with your business today.
@@ -235,21 +235,23 @@ function DashboardContent() {
                         <QuickActionButton
                             label="New Project"
                             icon={<FolderKanban className="w-5 h-5" />}
+                            onClick={() => navigate('/projects/new')}
                         />
                         <QuickActionButton
                             label="Add Task"
                             icon={<CheckSquare className="w-5 h-5" />}
+                            onClick={() => navigate('/projects')}
                         />
                         <QuickActionButton
                             label="Invite Team"
                             icon={<Users className="w-5 h-5" />}
+                            onClick={() => navigate('/profile')}
                         />
-                        <a href="/security" className="block">
-                            <QuickActionButton
-                                label="Security Log"
-                                icon={<Shield className="w-5 h-5" />}
-                            />
-                        </a>
+                        <QuickActionButton
+                            label="Security Log"
+                            icon={<Shield className="w-5 h-5" />}
+                            onClick={() => navigate('/security')}
+                        />
                     </div>
                 </div>
             </main>
@@ -292,9 +294,12 @@ function StatCard({
 }
 
 // Quick Action Button Component
-function QuickActionButton({ label, icon }: { label: string; icon: React.ReactNode }) {
+function QuickActionButton({ label, icon, onClick }: { label: string; icon: React.ReactNode; onClick?: () => void }) {
     return (
-        <button className="flex flex-col items-center gap-2 p-4 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition-colors">
+        <button 
+            onClick={onClick}
+            className="flex flex-col items-center gap-2 p-4 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition-colors"
+        >
             <div className="text-gray-600 dark:text-gray-400">{icon}</div>
             <span className="text-sm font-medium text-gray-900 dark:text-white">{label}</span>
         </button>
