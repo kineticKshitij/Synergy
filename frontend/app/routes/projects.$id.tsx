@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router';
 import { projectService } from '~/services/project.service';
 import { ProtectedRoute } from '~/components/ProtectedRoute';
+import { TaskModal } from '~/components/TaskModal';
 
 interface Project {
   id: number;
@@ -45,6 +46,8 @@ function ProjectDetailsContent() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'tasks' | 'team' | 'activity'>('overview');
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
 
   useEffect(() => {
     loadProject();
@@ -69,6 +72,36 @@ function ProjectDetailsContent() {
     } catch (error) {
       console.error('Failed to load tasks:', error);
     }
+  };
+
+  const handleCreateTask = async (taskData: any) => {
+    try {
+      await projectService.createTask(taskData);
+      await loadTasks();
+      await loadProject(); // Refresh project to update task count
+      setIsTaskModalOpen(false);
+    } catch (error) {
+      console.error('Failed to create task:', error);
+      throw error;
+    }
+  };
+
+  const handleEditTask = async (taskData: any) => {
+    if (!editingTask) return;
+    try {
+      await projectService.updateTask(editingTask.id, taskData);
+      await loadTasks();
+      setEditingTask(null);
+      setIsTaskModalOpen(false);
+    } catch (error) {
+      console.error('Failed to update task:', error);
+      throw error;
+    }
+  };
+
+  const openTaskModal = (task?: Task) => {
+    setEditingTask(task || null);
+    setIsTaskModalOpen(true);
   };
 
   const getStatusBadge = (status: string) => {
@@ -289,7 +322,10 @@ function ProjectDetailsContent() {
           <div>
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold">Tasks</h2>
-              <button className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors">
+              <button 
+                onClick={() => openTaskModal()}
+                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors"
+              >
                 ➕ New Task
               </button>
             </div>
@@ -299,7 +335,10 @@ function ProjectDetailsContent() {
                 <div className="text-6xl mb-4">📋</div>
                 <h3 className="text-xl font-semibold mb-2">No tasks yet</h3>
                 <p className="text-gray-400 mb-6">Get started by creating your first task</p>
-                <button className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors">
+                <button 
+                  onClick={() => openTaskModal()}
+                  className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors"
+                >
                   Create Task
                 </button>
               </div>
@@ -308,7 +347,8 @@ function ProjectDetailsContent() {
                 {tasks.map((task) => (
                   <div
                     key={task.id}
-                    className="bg-gray-800/50 border border-gray-700 rounded-lg p-4 hover:border-blue-500/50 transition-colors"
+                    onClick={() => openTaskModal(task)}
+                    className="bg-gray-800/50 border border-gray-700 rounded-lg p-4 hover:border-blue-500/50 transition-colors cursor-pointer"
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
@@ -335,6 +375,12 @@ function ProjectDetailsContent() {
                           </span>
                         </div>
                       </div>
+                      <button
+                        className="ml-4 text-gray-400 hover:text-white transition-colors"
+                        title="Edit task"
+                      >
+                        ✏️
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -401,6 +447,18 @@ function ProjectDetailsContent() {
           </div>
         )}
       </div>
+
+      {/* Task Modal */}
+      <TaskModal
+        isOpen={isTaskModalOpen}
+        onClose={() => {
+          setIsTaskModalOpen(false);
+          setEditingTask(null);
+        }}
+        onSubmit={editingTask ? handleEditTask : handleCreateTask}
+        projectId={Number(id)}
+        task={editingTask}
+      />
     </div>
   );
 }
