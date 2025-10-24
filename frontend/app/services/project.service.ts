@@ -244,6 +244,24 @@ export const projectService = {
         return response.json();
     },
 
+    // Delete task
+    async deleteTask(id: number) {
+        const token = this.getAuthToken();
+
+        const response = await fetch(`${API_URL}/tasks/${id}/`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to delete task');
+        }
+
+        return true;
+    },
+
     // Add comment to task
     async addComment(taskId: number, content: string) {
         const token = this.getAuthToken();
