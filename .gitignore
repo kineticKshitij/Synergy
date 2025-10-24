@@ -5,3 +5,15 @@
 # React Router
 /.react-router/
 /build/
+
+# Python Backend
+backend/__pycache__/
+backend/*.pyc
+backend/*.py[cod]
+backend/db.sqlite3
+backend/*.log
+backend/staticfiles/
+backend/media/
+backend/SOS/
+backend/venv/
+backend/env/
