@@ -1,9 +1,25 @@
 ````markdown
-# SynergyOS - Full Stack Authentication System
+# SynergyOS - Full Stack Application
 
-A modern full-stack application with Django REST backend and React Router v7 frontend, featuring comprehensive authentication and security features.
+Enterprise-grade full-stack application with Django REST backend and React Router v7 frontend.
 
-[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/kineticKshitij/Synergy)
+## 📁 Project Structure
+
+```
+SynergyOS/
+├── frontend/          # React Router v7 Application
+│   ├── app/          # Application routes & components
+│   ├── public/       # Static assets
+│   └── package.json  # Node dependencies
+├── backend/          # Django REST API
+│   ├── accounts/     # Authentication & user management
+│   ├── projects/     # Project management system
+│   ├── SynergyOS/    # Django settings
+│   └── manage.py     # Django management script
+└── docs/             # Documentation & test scripts
+```
+
+[![Repository](https://img.shields.io/badge/GitHub-SynergyOS-blue?logo=github)](https://github.com/kineticKshitij/Synergy)
 
 ## ✨ Features
 
