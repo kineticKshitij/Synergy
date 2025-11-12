@@ -1,4 +1,3 @@
-````markdown
 # SynergyOS - Full Stack Application
 
 Enterprise-grade full-stack application with Django REST backend and React Router v7 frontend.
@@ -729,5 +728,3 @@ This project is open source and available under the MIT License.
 **Built with ❤️ using Django REST Framework + React Router v7**
 
 **Note:** This is a production-ready authentication system with enterprise-grade security features. Ensure proper environment configuration, HTTPS, and security hardening for production deployment.
-
-````
