@@ -79,7 +79,11 @@ export const inviteTeamMember = async (
 
   if (!response.ok) {
     const error = await response.json();
-    throw new Error(error.error || 'Failed to invite team member');
+    // Include detailed validation errors if available
+    const errorMessage = error.details 
+      ? `${error.error}: ${JSON.stringify(error.details)}`
+      : (error.error || 'Failed to invite team member');
+    throw new Error(errorMessage);
   }
 
   return response.json();

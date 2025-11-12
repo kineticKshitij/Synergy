@@ -538,18 +538,27 @@ class InviteTeamMemberView(APIView):
                 metadata={
                     'invited_user_id': user.id,
                     'project_id': project.id,
-                    'custom_email': custom_email
+                    'custom_email': custom_email,
+                    'is_new_user': bool(password)
                 }
             )
         except Exception:
             pass
         
+        # Determine message based on whether it's a new user or existing user
+        if password:
+            message = 'Team member invited successfully. New account created and credentials sent via email.'
+            credentials_info = 'Temporary password has been sent to the user\'s email'
+        else:
+            message = 'Existing team member added to project successfully. Notification sent via email.'
+            credentials_info = 'User will use their existing account credentials'
+        
         return Response({
-            'message': 'Team member invited successfully',
+            'message': message,
             'user': UserDetailSerializer(user).data,
             'custom_email': custom_email,
             'email_sent': email_sent,
-            'credentials_info': 'Temporary password has been sent to the user\'s email'
+            'credentials_info': credentials_info
         }, status=status.HTTP_201_CREATED)
 
 

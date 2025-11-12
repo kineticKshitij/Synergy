@@ -60,10 +60,13 @@ def generate_custom_email(first_name, last_name, project_name):
 def send_invitation_email(user, custom_email, password, project_name, invited_by):
     """
     Send invitation email to new team member with credentials
+    For existing users (password=None), send a re-invitation notice instead
     """
     subject = f'Welcome to SynergyOS - You\'ve been invited to {project_name}'
     
-    message = f"""
+    if password:
+        # New user - send credentials
+        message = f"""
 Dear {user.first_name} {user.last_name},
 
 You have been invited to join the project "{project_name}" on SynergyOS by {invited_by.get_full_name() or invited_by.username}.
@@ -85,7 +88,26 @@ If you have any questions, please contact your project manager.
 
 Best regards,
 The SynergyOS Team
-    """.strip()
+        """.strip()
+    else:
+        # Existing user - re-invitation
+        message = f"""
+Dear {user.first_name} {user.last_name},
+
+You have been invited to join the project "{project_name}" on SynergyOS by {invited_by.get_full_name() or invited_by.username}.
+
+You already have an account with us. Please use your existing credentials to log in and access the project.
+
+Username: {user.username}
+Login URL: {settings.FRONTEND_URL or 'http://localhost'}/login
+
+Your custom Synergy email for this project: {custom_email}
+
+If you forgot your password, you can reset it from the login page.
+
+Best regards,
+The SynergyOS Team
+        """.strip()
     
     try:
         send_mail(
@@ -103,7 +125,7 @@ The SynergyOS Team
 
 def create_invited_user(email, first_name, last_name, role, department, position, project, invited_by):
     """
-    Create a new user account for an invited team member
+    Create a new user account for an invited team member or re-invite existing user
     
     Args:
         email: User's personal email
@@ -120,45 +142,71 @@ def create_invited_user(email, first_name, last_name, role, department, position
         None on failure
     """
     try:
-        # Generate username from email
-        base_username = email.split('@')[0].lower()
-        username = base_username
-        counter = 1
+        # Check if user with this email already exists
+        existing_user = User.objects.filter(email=email.lower()).first()
         
-        # Ensure username is unique
-        while User.objects.filter(username=username).exists():
-            username = f"{base_username}{counter}"
-            counter += 1
-        
-        # Generate secure password
-        password = generate_secure_password(16)
-        
-        # Create user
-        user = User.objects.create_user(
-            username=username,
-            email=email.lower(),
-            first_name=first_name,
-            last_name=last_name,
-            password=password
-        )
-        
-        # Generate custom Synergy email
-        custom_email = generate_custom_email(first_name, last_name, project.name)
-        
-        # Update user profile
-        profile = user.profile
-        profile.role = role
-        profile.custom_email = custom_email
-        profile.department = department or ''
-        profile.position = position or ''
-        profile.is_invited = True
-        profile.invited_by = invited_by
-        profile.save()
-        
-        # Add user to project team
-        project.team_members.add(user)
-        
-        return user, password, custom_email
+        if existing_user:
+            # User exists, just add them to the project
+            user = existing_user
+            password = None  # Don't generate new password for existing users
+            
+            # Generate custom Synergy email for this project
+            custom_email = generate_custom_email(first_name, last_name, project.name)
+            
+            # Update user profile
+            profile = user.profile
+            profile.role = role
+            profile.custom_email = custom_email
+            profile.department = department or ''
+            profile.position = position or ''
+            profile.save()
+            
+            # Add user to project team if not already added
+            if user not in project.team_members.all():
+                project.team_members.add(user)
+            
+            return user, password, custom_email
+        else:
+            # New user - create account
+            # Generate username from email
+            base_username = email.split('@')[0].lower()
+            username = base_username
+            counter = 1
+            
+            # Ensure username is unique
+            while User.objects.filter(username=username).exists():
+                username = f"{base_username}{counter}"
+                counter += 1
+            
+            # Generate secure password
+            password = generate_secure_password(16)
+            
+            # Create user
+            user = User.objects.create_user(
+                username=username,
+                email=email.lower(),
+                first_name=first_name,
+                last_name=last_name,
+                password=password
+            )
+            
+            # Generate custom Synergy email
+            custom_email = generate_custom_email(first_name, last_name, project.name)
+            
+            # Update user profile
+            profile = user.profile
+            profile.role = role
+            profile.custom_email = custom_email
+            profile.department = department or ''
+            profile.position = position or ''
+            profile.is_invited = True
+            profile.invited_by = invited_by
+            profile.save()
+            
+            # Add user to project team
+            project.team_members.add(user)
+            
+            return user, password, custom_email
         
     except Exception as e:
         print(f"Failed to create invited user: {str(e)}")
