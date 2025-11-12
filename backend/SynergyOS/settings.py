@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     # Local apps
     'accounts',
     'projects',
+    'webhooks',
 ]
 
 MIDDLEWARE = [
@@ -239,5 +240,66 @@ DATA_UPLOAD_MAX_NUMBER_FIELDS = 1000
 
 # Frontend URL (for email links)
 FRONTEND_URL = config('FRONTEND_URL', default='http://localhost')
+
+# ============================================================================
+# Redis Configuration
+# ============================================================================
+
+REDIS_URL = config('REDIS_URL', default='redis://localhost:6379/0')
+
+# Cache Configuration
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': REDIS_URL,
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            'PARSER_CLASS': 'redis.connection.HiredisParser',
+            'CONNECTION_POOL_CLASS_KWARGS': {
+                'max_connections': 50,
+                'retry_on_timeout': True,
+            },
+            'SOCKET_CONNECT_TIMEOUT': 5,
+            'SOCKET_TIMEOUT': 5,
+        },
+        'KEY_PREFIX': 'synergy',
+        'TIMEOUT': 300,  # 5 minutes default timeout
+    }
+}
+
+# Session backend using Redis
+SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+SESSION_CACHE_ALIAS = 'default'
+
+# ============================================================================
+# Celery Configuration
+# ============================================================================
+
+CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', default='redis://localhost:6379/0')
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'UTC'
+CELERY_ENABLE_UTC = True
+
+# Task result expiration
+CELERY_RESULT_EXPIRES = 3600  # 1 hour
+
+# Task execution settings
+CELERY_TASK_ACKS_LATE = True
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+CELERY_TASK_REJECT_ON_WORKER_LOST = True
+
+# Celery Beat schedule (for periodic tasks)
+from celery.schedules import crontab
+
+CELERY_BEAT_SCHEDULE = {
+    'cleanup-expired-webhooks': {
+        'task': 'webhooks.tasks.cleanup_expired_webhooks',
+        'schedule': crontab(hour=2, minute=0),  # Run daily at 2 AM
+    },
+}
+
 
 

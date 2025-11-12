@@ -17,6 +17,21 @@ services:
       timeout: 5s
       retries: 5
 
+  # Redis Cache & Message Broker
+  redis:
+    image: redis:7-alpine
+    container_name: synergyos-redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - synergyos-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # Django Backend
   backend:
     build:
@@ -53,13 +68,77 @@ services:
       - EMAIL_HOST_PASSWORD=${EMAIL_HOST_PASSWORD}
       - DEFAULT_FROM_EMAIL=${DEFAULT_FROM_EMAIL:-noreply@synergyos.com}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     networks:
       - synergyos-network
     expose:
       - "8000"
+
+  # Celery Worker
+  celery_worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: synergyos-celery-worker
+    command: celery -A SynergyOS worker -l info
+    volumes:
+      - ./backend:/app
+    environment:
+      - SECRET_KEY=${SECRET_KEY:-django-insecure-change-this-in-production}
+      - DEBUG=${DEBUG:-True}
+      - DB_ENGINE=django.db.backends.postgresql
+      - DB_NAME=synergyos
+      - DB_USER=synergyos_user
+      - DB_PASSWORD=${DB_PASSWORD:-synergyos_pass_2024}
+      - DB_HOST=db
+      - DB_PORT=5432
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - synergyos-network
+
+  # Celery Beat (Scheduled Tasks)
+  celery_beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: synergyos-celery-beat
+    command: celery -A SynergyOS beat -l info
+    volumes:
+      - ./backend:/app
+    environment:
+      - SECRET_KEY=${SECRET_KEY:-django-insecure-change-this-in-production}
+      - DEBUG=${DEBUG:-True}
+      - DB_ENGINE=django.db.backends.postgresql
+      - DB_NAME=synergyos
+      - DB_USER=synergyos_user
+      - DB_PASSWORD=${DB_PASSWORD:-synergyos_pass_2024}
+      - DB_HOST=db
+      - DB_PORT=5432
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - synergyos-network
 
   # React Frontend
   frontend:
@@ -99,5 +178,6 @@ networks:
 
 volumes:
   postgres_data:
+  redis_data:
   static_volume:
   media_volume:

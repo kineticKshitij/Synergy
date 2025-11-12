@@ -9,3 +9,8 @@ bleach==6.2.0
 Pillow==11.1.0
 google-generativeai==0.8.3
 python-dotenv==1.0.0
+
+# Redis and Celery
+redis==5.0.1
+django-redis==5.4.0
+celery==5.3.4
