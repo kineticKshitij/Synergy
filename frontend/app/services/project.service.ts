@@ -24,6 +24,7 @@ interface Task {
     due_date?: string | null;
     estimated_hours?: number | null;
     actual_hours?: number | null;
+    impact?: number | null;
 }
 
 export const projectService = {

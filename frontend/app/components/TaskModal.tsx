@@ -17,6 +17,7 @@ export function TaskModal({ isOpen, onClose, onSubmit, onDelete, projectId, task
         priority: 'medium',
         due_date: '',
         estimated_hours: '',
+        impact: '',
     });
     const [loading, setLoading] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -30,6 +31,7 @@ export function TaskModal({ isOpen, onClose, onSubmit, onDelete, projectId, task
                 priority: task.priority || 'medium',
                 due_date: task.due_date || '',
                 estimated_hours: task.estimated_hours || '',
+                impact: task.impact || '',
             });
         } else {
             setFormData({
@@ -39,6 +41,7 @@ export function TaskModal({ isOpen, onClose, onSubmit, onDelete, projectId, task
                 priority: 'medium',
                 due_date: '',
                 estimated_hours: '',
+                impact: '',
             });
         }
     }, [task, isOpen]);
@@ -52,6 +55,7 @@ export function TaskModal({ isOpen, onClose, onSubmit, onDelete, projectId, task
                 ...formData,
                 project: projectId,
                 estimated_hours: formData.estimated_hours ? parseFloat(formData.estimated_hours) : null,
+                impact: formData.impact ? parseFloat(formData.impact) : 0,
             };
             await onSubmit(taskData);
             onClose();
@@ -188,6 +192,26 @@ export function TaskModal({ isOpen, onClose, onSubmit, onDelete, projectId, task
                                 placeholder="0.0"
                             />
                         </div>
+                    </div>
+
+                    {/* Impact on Project Progress */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">
+                            📊 Impact on Project Progress (%)
+                        </label>
+                        <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            max="100"
+                            value={formData.impact}
+                            onChange={(e) => setFormData({ ...formData, impact: e.target.value })}
+                            className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-white"
+                            placeholder="Enter impact percentage (0-100)"
+                        />
+                        <p className="mt-2 text-sm text-gray-400">
+                            💡 This task will contribute {formData.impact || '0'}% to the project progress when completed
+                        </p>
                     </div>
 
                     {/* Actions */}

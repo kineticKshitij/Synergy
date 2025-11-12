@@ -37,10 +37,16 @@ class TaskSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'project', 'title', 'description', 'status', 'priority',
             'assigned_to', 'assigned_to_id', 'due_date', 'estimated_hours',
-            'actual_hours', 'created_at', 'updated_at', 'completed_at',
+            'actual_hours', 'impact', 'created_at', 'updated_at', 'completed_at',
             'comment_count'
         ]
         read_only_fields = ['created_at', 'updated_at']
+    
+    def validate_impact(self, value):
+        """Validate that impact is between 0 and 100"""
+        if value < 0 or value > 100:
+            raise serializers.ValidationError("Impact must be between 0 and 100.")
+        return value
     
     def get_comment_count(self, obj):
         return obj.comments.count()
