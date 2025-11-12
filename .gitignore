@@ -10,7 +10,7 @@ Thumbs.db
 *.env
 
 # API Keys and Secrets
-api-test.ps1
+*.ps1
 *_API_KEY*
 secrets/
 credentials/
