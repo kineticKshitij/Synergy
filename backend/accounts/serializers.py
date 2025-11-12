@@ -281,9 +281,9 @@ class UserProfileSerializer(serializers.ModelSerializer):
         model = UserProfile
         fields = (
             'id', 'user', 'username', 'user_email', 'full_name',
-            'role', 'custom_email', 'phone_number', 'department', 
-            'position', 'bio', 'avatar', 'is_invited', 'invited_by',
-            'invitation_sent_at', 'created_at', 'updated_at'
+            'role', 'custom_email', 'phone', 'bio', 'avatar', 
+            'is_invited', 'invited_by', 'invitation_sent_at', 
+            'created_at', 'updated_at'
         )
         read_only_fields = ('id', 'user', 'username', 'user_email', 'full_name', 
                            'is_invited', 'invited_by', 'invitation_sent_at', 

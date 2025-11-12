@@ -553,6 +553,93 @@ class InviteTeamMemberView(APIView):
         }, status=status.HTTP_201_CREATED)
 
 
+class RemoveTeamMemberView(APIView):
+    """Remove a team member from a project"""
+    permission_classes = (IsAuthenticated,)
+    
+    def delete(self, request):
+        """Remove a team member from a project"""
+        project_id = request.data.get('project_id')
+        user_id = request.data.get('user_id')
+        
+        if not project_id or not user_id:
+            return Response(
+                {'error': 'project_id and user_id are required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Get project
+        from projects.models import Project
+        try:
+            project = Project.objects.get(id=project_id)
+        except Project.DoesNotExist:
+            return Response(
+                {'error': 'Project not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Check if user is project owner or manager
+        try:
+            user_profile = request.user.profile
+        except UserProfile.DoesNotExist:
+            user_profile = UserProfile.objects.create(
+                user=request.user,
+                role='admin'
+            )
+        
+        if project.owner != request.user and user_profile.role not in ['manager', 'admin']:
+            return Response(
+                {'error': 'You do not have permission to remove team members from this project'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Get user to remove
+        try:
+            user_to_remove = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return Response(
+                {'error': 'User not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Cannot remove project owner
+        if user_to_remove == project.owner:
+            return Response(
+                {'error': 'Cannot remove project owner'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Remove user from project
+        if user_to_remove in project.team_members.all():
+            project.team_members.remove(user_to_remove)
+            
+            # Log removal event
+            try:
+                SecurityEvent.objects.create(
+                    event_type='other',
+                    user=request.user,
+                    username=request.user.username,
+                    ip_address=get_client_ip(request),
+                    description=f'Removed {user_to_remove.email} from project {project.name}',
+                    metadata={
+                        'removed_user_id': user_to_remove.id,
+                        'project_id': project.id
+                    }
+                )
+            except Exception:
+                pass
+            
+            return Response({
+                'message': 'Team member removed successfully',
+                'removed_user': UserDetailSerializer(user_to_remove).data
+            }, status=status.HTTP_200_OK)
+        else:
+            return Response(
+                {'error': 'User is not a member of this project'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+
 class MyUserProfileDetailView(generics.RetrieveUpdateAPIView):
     """View and update extended user profile with UserProfile model"""
     permission_classes = (IsAuthenticated,)

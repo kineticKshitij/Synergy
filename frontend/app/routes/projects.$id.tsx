@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router';
 import { projectService } from '~/services/project.service';
+import { removeTeamMember } from '~/services/team.service';
 import { ProtectedRoute } from '~/components/ProtectedRoute';
 import { TaskModal } from '~/components/TaskModal';
 import { Navbar } from '~/components/Navbar';
@@ -126,6 +127,22 @@ function ProjectDetailsContent() {
             await loadProject();
         } catch (error) {
             console.error('Failed to mark task as complete:', error);
+        }
+    };
+
+    const handleRemoveMember = async (userId: number) => {
+        if (!project) return;
+        
+        if (!confirm('Are you sure you want to remove this team member from the project?')) {
+            return;
+        }
+
+        try {
+            await removeTeamMember(project.id, userId);
+            await loadProject(); // Refresh project to update team members
+        } catch (error) {
+            console.error('Failed to remove team member:', error);
+            alert('Failed to remove team member. Please try again.');
         }
     };
 
@@ -490,17 +507,26 @@ function ProjectDetailsContent() {
                             {/* Team Members */}
                             {project.team_members.map((member: any) => (
                                 <div key={member.id} className="bg-gray-800/50 border border-gray-700 rounded-lg p-6">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-12 h-12 bg-green-600 rounded-full flex items-center justify-center text-xl font-bold">
-                                            {member.username.charAt(0).toUpperCase()}
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-12 h-12 bg-green-600 rounded-full flex items-center justify-center text-xl font-bold">
+                                                {member.username.charAt(0).toUpperCase()}
+                                            </div>
+                                            <div>
+                                                <p className="font-semibold">{member.username}</p>
+                                                <p className="text-sm text-gray-400">{member.email}</p>
+                                                <span className="inline-block mt-1 px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded">
+                                                    Member
+                                                </span>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <p className="font-semibold">{member.username}</p>
-                                            <p className="text-sm text-gray-400">{member.email}</p>
-                                            <span className="inline-block mt-1 px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded">
-                                                Member
-                                            </span>
-                                        </div>
+                                        <button
+                                            onClick={() => handleRemoveMember(member.id)}
+                                            className="ml-2 p-2 text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-lg transition-colors"
+                                            title="Remove member"
+                                        >
+                                            🗑️
+                                        </button>
                                     </div>
                                 </div>
                             ))}

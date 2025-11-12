@@ -151,3 +151,32 @@ export const updateProfile = async (
 
   return response.json();
 };
+
+/**
+ * Remove a team member from a project
+ */
+export const removeTeamMember = async (
+  projectId: number,
+  userId: number
+): Promise<{ message: string; removed_user: TeamMember }> => {
+  const token = getAccessToken();
+
+  const response = await fetch('/api/auth/remove-member/', {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      project_id: projectId,
+      user_id: userId,
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to remove team member');
+  }
+
+  return response.json();
+};

@@ -11,6 +11,7 @@ from .views import (
     DashboardStatsView,
     SecurityEventListView,
     InviteTeamMemberView,
+    RemoveTeamMemberView,
     MyUserProfileDetailView,
     TeamMemberListView
 )
@@ -35,6 +36,7 @@ urlpatterns = [
     # Team Members
     path('invite/', InviteTeamMemberView.as_view(), name='invite_team_member'),
     path('team-members/', TeamMemberListView.as_view(), name='team_members'),
+    path('remove-member/', RemoveTeamMemberView.as_view(), name='remove_team_member'),
     
     # Security
     path('security-events/', SecurityEventListView.as_view(), name='security_events'),
