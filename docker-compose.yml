@@ -1,0 +1,97 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:16-alpine
+    container_name: synergyos-db
+    environment:
+      POSTGRES_DB: synergyos
+      POSTGRES_USER: synergyos_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-synergyos_pass_2024}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - synergyos-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U synergyos_user -d synergyos"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Django Backend
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: synergyos-backend
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
+             gunicorn SynergyOS.wsgi:application --bind 0.0.0.0:8000 --workers 4"
+    volumes:
+      - ./backend:/app
+      - static_volume:/app/staticfiles
+      - media_volume:/app/media
+    environment:
+      - SECRET_KEY=${SECRET_KEY:-django-insecure-change-this-in-production}
+      - DEBUG=False
+      - ALLOWED_HOSTS=localhost,127.0.0.1,backend,nginx
+      - DB_ENGINE=django.db.backends.postgresql
+      - DB_NAME=synergyos
+      - DB_USER=synergyos_user
+      - DB_PASSWORD=${DB_PASSWORD:-synergyos_pass_2024}
+      - DB_HOST=db
+      - DB_PORT=5432
+      - CORS_ALLOWED_ORIGINS=http://localhost,http://localhost:3000,http://localhost:80
+      - CSRF_TRUSTED_ORIGINS=http://localhost,http://localhost:3000,http://localhost:80
+      - JWT_ACCESS_TOKEN_LIFETIME=60
+      - JWT_REFRESH_TOKEN_LIFETIME=1440
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - synergyos-network
+    expose:
+      - "8000"
+
+  # React Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: synergyos-frontend
+    environment:
+      - NODE_ENV=production
+      - VITE_API_URL=http://localhost/api
+    networks:
+      - synergyos-network
+    expose:
+      - "3000"
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: synergyos-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - static_volume:/app/staticfiles:ro
+      - media_volume:/app/media:ro
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - synergyos-network
+
+networks:
+  synergyos-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  static_volume:
+  media_volume:

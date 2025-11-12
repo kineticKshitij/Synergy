@@ -1,14 +1,5 @@
-# Git
-.git
-.gitignore
-
-# Node
-node_modules
-npm-debug.log
-.react-router
-
 # Python
-__pycache__
+__pycache__/
 *.py[cod]
 *$py.class
 *.so
@@ -27,31 +18,18 @@ htmlcov/
 *.log
 db.sqlite3
 db.sqlite3-journal
-/staticfiles/
 /media/
 
 # Environment
 .env
 .env.local
-.env.*.local
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
-*~
 
 # OS
 .DS_Store
 Thumbs.db
-
-# Documentation
-README.md
-docs/
-*.md
-
-# Build
-build/
-dist/
-*.map
