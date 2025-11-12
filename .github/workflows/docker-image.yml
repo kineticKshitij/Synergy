@@ -29,16 +29,16 @@ jobs:
         echo "ALLOWED_HOSTS=localhost,127.0.0.1" >> .env
         echo "CORS_ALLOWED_ORIGINS=http://localhost,http://127.0.0.1" >> .env
 
-    - name: Build Docker images with docker-compose
-      run: docker-compose build
+    - name: Build Docker images with docker compose
+      run: docker compose build
 
     - name: Verify images were built
       run: docker images
 
     - name: Test services can start
       run: |
-        docker-compose up -d
+        docker compose up -d
         sleep 10
-        docker-compose ps
-        docker-compose logs backend
-        docker-compose down
+        docker compose ps
+        docker compose logs backend
+        docker compose down
