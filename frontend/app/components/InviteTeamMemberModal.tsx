@@ -340,6 +340,8 @@ export default function InviteTeamMemberModal({
             border-radius: 6px;
             font-size: 0.95rem;
             transition: all 0.2s;
+            color: #1f2937;
+            background-color: white;
           }
 
           .form-group input:focus,

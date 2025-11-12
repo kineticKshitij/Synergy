@@ -484,7 +484,16 @@ class InviteTeamMemberView(APIView):
             )
         
         # Check if user is project owner or manager
-        user_profile = request.user.profile
+        # Get or create profile for the requesting user
+        try:
+            user_profile = request.user.profile
+        except UserProfile.DoesNotExist:
+            # Create profile if it doesn't exist
+            user_profile = UserProfile.objects.create(
+                user=request.user,
+                role='admin'  # Default to admin for users without profile
+            )
+        
         if project.owner != request.user and user_profile.role not in ['manager', 'admin']:
             return Response(
                 {'error': 'You do not have permission to invite team members to this project'},
