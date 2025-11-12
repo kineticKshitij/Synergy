@@ -292,7 +292,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
 class TeamMemberInvitationSerializer(serializers.Serializer):
     """Serializer for inviting team members"""
-    email = serializers.EmailField(required=True, validators=[validate_email_format])
+    email = serializers.EmailField(required=True)
     first_name = serializers.CharField(required=True, max_length=50)
     last_name = serializers.CharField(required=True, max_length=50)
     role = serializers.ChoiceField(
@@ -306,6 +306,10 @@ class TeamMemberInvitationSerializer(serializers.Serializer):
         required=True,
         help_text="Project ID to associate the team member with"
     )
+    
+    def validate_email(self, value):
+        """Validate email format but allow existing users"""
+        return validate_email_format(value)
     
     def validate_first_name(self, value):
         return validate_name_format(value, "First name")
