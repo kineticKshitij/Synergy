@@ -105,6 +105,15 @@ export function Navbar() {
                                     Projects
                                 </Link>
                                 <Link
+                                    to="/team-dashboard"
+                                    className={`text-sm font-medium transition-colors ${isActive('/team-dashboard')
+                                            ? 'text-blue-400'
+                                            : 'text-gray-300 hover:text-white'
+                                        }`}
+                                >
+                                    Team
+                                </Link>
+                                <Link
                                     to="/profile"
                                     className={`text-sm font-medium transition-colors ${isActive('/profile')
                                             ? 'text-blue-400'

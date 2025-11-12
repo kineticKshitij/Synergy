@@ -1,7 +1,7 @@
 // Use relative URL to go through nginx proxy
 const API_URL = '/api';
 
-interface Project {
+export interface Project {
     id?: number;
     name: string;
     description?: string;
@@ -13,13 +13,20 @@ interface Project {
     progress: number;
 }
 
-interface Task {
+export interface Task {
     id?: number;
     project: number;
     title: string;
     description?: string;
     status: string;
     priority: string;
+    assigned_to?: {
+        id: number;
+        username: string;
+        email: string;
+        first_name: string;
+        last_name: string;
+    } | null;
     assigned_to_id?: number | null;
     due_date?: string | null;
     estimated_hours?: number | null;
@@ -303,3 +310,15 @@ export const projectService = {
         return response.json();
     },
 };
+
+// Export convenience functions
+export const getProjects = (params?: any) => projectService.getProjects(params);
+export const getProject = (id: number) => projectService.getProject(id);
+export const createProject = (data: Project) => projectService.createProject(data);
+export const updateProject = (id: number, data: Partial<Project>) => projectService.updateProject(id, data);
+export const deleteProject = (id: number) => projectService.deleteProject(id);
+export const getTasks = (params?: any) => projectService.getTasks(params);
+export const createTask = (data: Task) => projectService.createTask(data);
+export const updateTask = (id: number, data: Partial<Task>) => projectService.updateTask(id, data);
+export const deleteTask = (id: number) => projectService.deleteTask(id);
+

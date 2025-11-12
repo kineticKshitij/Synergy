@@ -7,6 +7,7 @@ export default [
     route("forgot-password", "routes/forgot-password.tsx"),
     route("reset-password/:uid/:token", "routes/reset-password.$uid.$token.tsx"),
     route("dashboard", "routes/dashboard.tsx"),
+    route("team-dashboard", "routes/team-dashboard.tsx"),
     route("profile", "routes/profile.tsx"),
     route("security", "routes/security.tsx"),
     route("projects", "routes/projects.tsx"),
