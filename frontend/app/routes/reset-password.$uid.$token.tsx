@@ -78,7 +78,7 @@ export default function ResetPassword() {
         setErrorMessage('');
 
         try {
-            const response = await axios.post('http://localhost:8000/api/auth/password-reset-confirm/', {
+            const response = await axios.post('/api/auth/password-reset-confirm/', {
                 uid,
                 token,
                 new_password: formData.new_password,
