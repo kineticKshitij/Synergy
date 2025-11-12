@@ -464,6 +464,8 @@ class InviteTeamMemberView(APIView):
         serializer = TeamMemberInvitationSerializer(data=request.data)
         
         if not serializer.is_valid():
+            # Log the validation errors for debugging
+            print(f"Invitation validation failed: {serializer.errors}")
             return Response(
                 {'error': 'Invalid data', 'details': serializer.errors},
                 status=status.HTTP_400_BAD_REQUEST

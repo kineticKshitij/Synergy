@@ -308,7 +308,7 @@ class TeamMemberInvitationSerializer(serializers.Serializer):
     )
     
     def validate_email(self, value):
-        """Validate email format but allow existing users"""
+        """Validate email format but allow existing users for re-invitation"""
         return validate_email_format(value)
     
     def validate_first_name(self, value):
@@ -316,15 +316,6 @@ class TeamMemberInvitationSerializer(serializers.Serializer):
     
     def validate_last_name(self, value):
         return validate_name_format(value, "Last name")
-    
-    def validate_email(self, value):
-        value = validate_email_format(value)
-        # Check if user already exists
-        if User.objects.filter(email=value).exists():
-            raise serializers.ValidationError(
-                "A user with this email already exists in the system."
-            )
-        return value
 
 
 class UserDetailSerializer(serializers.ModelSerializer):
