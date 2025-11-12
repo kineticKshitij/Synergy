@@ -4,6 +4,7 @@ import { projectService } from '~/services/project.service';
 import { ProtectedRoute } from '~/components/ProtectedRoute';
 import { TaskModal } from '~/components/TaskModal';
 import { Navbar } from '~/components/Navbar';
+import InviteTeamMemberModal from '~/components/InviteTeamMemberModal';
 
 interface Project {
     id: number;
@@ -49,6 +50,7 @@ function ProjectDetailsContent() {
     const [activeTab, setActiveTab] = useState<'overview' | 'tasks' | 'team' | 'activity'>('overview');
     const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
     const [editingTask, setEditingTask] = useState<Task | null>(null);
+    const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
 
     useEffect(() => {
         loadProject();
@@ -460,7 +462,10 @@ function ProjectDetailsContent() {
                     <div>
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-2xl font-bold">Team Members</h2>
-                            <button className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors">
+                            <button 
+                                onClick={() => setIsInviteModalOpen(true)}
+                                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors"
+                            >
                                 ➕ Add Member
                             </button>
                         </div>
@@ -527,6 +532,20 @@ function ProjectDetailsContent() {
                 projectId={Number(id)}
                 task={editingTask}
             />
+
+            {/* Invite Team Member Modal */}
+            {project && (
+                <InviteTeamMemberModal
+                    projectId={project.id}
+                    projectName={project.name}
+                    isOpen={isInviteModalOpen}
+                    onClose={() => setIsInviteModalOpen(false)}
+                    onSuccess={() => {
+                        loadProject(); // Refresh project data to show new team member
+                        setIsInviteModalOpen(false);
+                    }}
+                />
+            )}
         </div>
     );
 }
