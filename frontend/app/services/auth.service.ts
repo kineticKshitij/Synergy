@@ -1,7 +1,8 @@
 import axios from 'axios';
 import { jwtDecode } from 'jwt-decode';
 
-const API_URL = 'http://localhost:8000/api/auth/';
+// Use relative URL to go through nginx proxy
+const API_URL = '/api/auth/';
 
 const api = axios.create({
     baseURL: API_URL,

@@ -1,4 +1,5 @@
-const API_URL = 'http://localhost:8000/api';
+// Use relative URL to go through nginx proxy
+const API_URL = '/api';
 
 interface Project {
     id?: number;

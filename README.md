@@ -3,6 +3,31 @@
 
 Enterprise-grade full-stack application with Django REST backend and React Router v7 frontend.
 
+[![Repository](https://img.shields.io/badge/GitHub-SynergyOS-blue?logo=github)](https://github.com/kineticKshitij/Synergy)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker)](https://www.docker.com/)
+[![Django](https://img.shields.io/badge/Django-5.2.7-092E20?logo=django)](https://www.djangoproject.com/)
+[![React Router](https://img.shields.io/badge/React_Router-v7-CA4245?logo=react-router)](https://reactrouter.com/)
+
+## 🚀 Quick Start
+
+**Get the entire application running in 3 commands:**
+
+```powershell
+# 1. Build containers
+docker-compose build
+
+# 2. Start all services
+docker-compose up -d
+
+# 3. Create admin user
+docker-compose exec backend python manage.py createsuperuser
+```
+
+**Access your application:**
+- Frontend: http://localhost
+- Backend API: http://localhost/api/
+- Admin Panel: http://localhost/admin/
+
 ## 📁 Project Structure
 
 ```
@@ -329,6 +354,12 @@ resolved_by: ForeignKey (User, nullable)
 - Celery - Asynchronous task processing
 - Redis - Caching and queue management
 
+**DevOps & Deployment:**
+- Docker & Docker Compose - Containerization
+- Nginx - Reverse proxy and load balancing
+- Gunicorn - WSGI HTTP server
+- PostgreSQL 16 - Production database
+
 **Security:**
 - JWT Authentication
 - Rate Limiting
@@ -493,54 +524,180 @@ npm run build
 - Configure HTTPS/SSL
 - Use Gunicorn or uWSGI server
 
-## 🐳 Deployment
+## 🐳 Docker Deployment
 
-### Docker Deployment
+### Quick Start with Docker
 
-**Complete Docker setup with AI/ML services included!**
+**Complete Docker setup with multi-service architecture!**
 
-The project includes a full Docker Compose configuration with:
-- PostgreSQL database
-- Django backend with Gunicorn
-- React frontend with SSR
-- Nginx reverse proxy
-- Redis for caching and Celery queues (AI tasks)
+The project includes a production-ready Docker Compose configuration with:
+- **PostgreSQL 16** - Production database
+- **Django Backend** - REST API with Gunicorn (4 workers)
+- **React Frontend** - SSR with React Router v7
+- **Nginx** - Reverse proxy with security headers
+- **Persistent Volumes** - Data persistence for database, static files, and media
 
-To build and run using Docker:
+#### 1. Build and Start All Services
 
-```bash
-# Quick start
-docker-compose up -d --build
+```powershell
+# Build all containers
+docker-compose build
 
-# Create Django superuser
-docker-compose exec backend python manage.py createsuperuser
+# Start all services in detached mode
+docker-compose up -d
 
-# Access the application
-# Frontend: http://localhost
-# Backend API: http://localhost/api
-# Admin: http://localhost/admin
+# View logs
+docker-compose logs -f
 ```
 
-**AI Services Configuration:**
-The Docker setup includes Redis for handling asynchronous AI tasks:
-- Sentiment analysis processing
-- Anomaly detection scans
-- Trend analysis computations
-- Auto-remediation tasks
+#### 2. Create Django Superuser
 
-For detailed deployment instructions, see:
+```powershell
+# Create admin user
+docker-compose exec backend python manage.py createsuperuser
+
+# Or set password for existing admin user
+docker-compose exec backend python manage.py changepassword admin
+```
+
+#### 3. Access Your Application
+
+- **Frontend**: http://localhost
+- **Backend API**: http://localhost/api/
+- **Django Admin**: http://localhost/admin/
+- **Health Check**: http://localhost/health
+
+#### 4. Common Commands
+
+```powershell
+# View service status
+docker-compose ps
+
+# Stop services
+docker-compose stop
+
+# Restart services
+docker-compose restart
+
+# View specific service logs
+docker-compose logs -f backend
+docker-compose logs -f frontend
+docker-compose logs -f nginx
+
+# Run Django management commands
+docker-compose exec backend python manage.py migrate
+docker-compose exec backend python manage.py shell
+docker-compose exec backend python manage.py collectstatic
+
+# Access database
+docker-compose exec db psql -U synergyos_user -d synergyos
+
+# Stop and remove all containers
+docker-compose down
+
+# Stop and remove including volumes
+docker-compose down -v
+```
+
+### Important Configuration Notes
+
+**Environment Variables:**
+- Edit `.env` file before first run
+- Set `DEBUG=True` for local development
+- Set `DEBUG=False` for production (requires SSL certificates)
+- Generate secure `SECRET_KEY` using `python generate_secret_key.py`
+
+**API Configuration:**
+- Frontend uses **relative URLs** (`/api/`) to route through nginx
+- All requests go through nginx reverse proxy on port 80
+- Backend is not directly exposed (internal port 8000)
+- CORS configured for http://localhost
+
+**For Detailed Deployment:**
 - **DOCKER_QUICKSTART.md** - Quick reference guide
 - **DOCKER_DEPLOYMENT.md** - Comprehensive deployment guide
 - **DEPLOYMENT_STATUS.md** - Current deployment status
 
-The containerized application can be deployed to any platform that supports Docker, including:
+### Production Deployment Platforms
 
-- AWS ECS
-- Google Cloud Run
-- Azure Container Apps
-- Digital Ocean App Platform
-- Fly.io
-- Railway
+The containerized application can be deployed to:
+
+- **AWS** - ECS, Fargate, EC2
+- **Google Cloud** - Cloud Run, GKE
+- **Azure** - Container Apps, AKS
+- **Digital Ocean** - App Platform, Droplets
+- **Heroku** - Container Registry
+- **Fly.io** - Docker deployment
+- **Railway** - Direct Docker support
+
+### 🐛 Docker Troubleshooting
+
+#### Issue: Website shows ERR_EMPTY_RESPONSE or ERR_CONNECTION_REFUSED
+
+**Problem**: Django's `SECURE_SSL_REDIRECT` redirects HTTP to HTTPS when `DEBUG=False`, but SSL certificates are not configured.
+
+**Solution**:
+```powershell
+# Edit .env file and set:
+DEBUG=True  # For local development without SSL
+
+# Restart backend
+docker-compose restart backend
+```
+
+#### Issue: Frontend can't connect to API (net::ERR_CONNECTION_REFUSED)
+
+**Problem**: Frontend trying to connect directly to backend container instead of going through nginx.
+
+**Solution**: Frontend API URLs must use **relative paths**:
+```typescript
+// ✅ Correct - routes through nginx
+const API_URL = '/api/auth/';
+
+// ❌ Wrong - bypasses nginx
+const API_URL = 'http://localhost:8000/api/auth/';
+```
+
+#### Issue: Docker build fails with "no such host" error
+
+**Problem**: Cannot reach Docker Hub registry.
+
+**Solution**:
+```powershell
+# Pre-pull base images manually
+docker pull node:20-alpine
+docker pull python:3.11-slim
+docker pull postgres:16-alpine
+docker pull nginx:alpine
+
+# Then build
+docker-compose build
+```
+
+#### Issue: Port 80 already in use
+
+**Solution**:
+```powershell
+# Find process using port 80
+netstat -ano | findstr :80
+
+# Kill the process or change docker-compose.yml ports
+# Edit docker-compose.yml nginx ports to 8080:80
+```
+
+#### Issue: Database connection failed
+
+**Solution**:
+```powershell
+# Check database is running and healthy
+docker-compose ps db
+
+# View database logs
+docker-compose logs db
+
+# Restart database
+docker-compose restart db
+```
 
 ## 🤝 Contributing
 
