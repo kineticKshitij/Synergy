@@ -309,6 +309,66 @@ export const projectService = {
 
         return response.json();
     },
+
+    // Get task attachments
+    async getTaskAttachments(taskId: number) {
+        const token = this.getAuthToken();
+
+        const response = await fetch(`${API_URL}/tasks/${taskId}/attachments/`, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to fetch task attachments');
+        }
+
+        return response.json();
+    },
+
+    // Get project messages
+    async getMessages(params?: any) {
+        const token = this.getAuthToken();
+        const queryString = params ? '?' + new URLSearchParams(params).toString() : '';
+
+        const response = await fetch(`${API_URL}/messages/${queryString}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to fetch messages');
+        }
+
+        return response.json();
+    },
+
+    // Send a message
+    async sendMessage(projectId: number, message: string) {
+        const token = this.getAuthToken();
+
+        const response = await fetch(`${API_URL}/messages/`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                project: projectId,
+                message: message,
+            }),
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to send message');
+        }
+
+        return response.json();
+    },
 };
 
 // Export convenience functions

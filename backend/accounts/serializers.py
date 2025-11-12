@@ -218,11 +218,12 @@ class UserSerializer(serializers.ModelSerializer):
         max_length=50,
         required=False
     )
+    role = serializers.CharField(source='profile.role', read_only=True)
     
     class Meta:
         model = User
-        fields = ('id', 'username', 'email', 'first_name', 'last_name', 'date_joined', 'last_login')
-        read_only_fields = ('id', 'date_joined', 'last_login')
+        fields = ('id', 'username', 'email', 'first_name', 'last_name', 'date_joined', 'last_login', 'role')
+        read_only_fields = ('id', 'date_joined', 'last_login', 'role')
     
     def validate_username(self, value):
         """Validate username on update"""

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Project, Task, Comment, ProjectActivity
+from .models import Project, Task, Comment, ProjectActivity, TaskAttachment, ProjectMessage
 
 
 @admin.register(Project)
@@ -33,3 +33,23 @@ class ProjectActivityAdmin(admin.ModelAdmin):
     list_display = ['project', 'action', 'user', 'created_at']
     list_filter = ['action', 'created_at']
     search_fields = ['description']
+
+
+@admin.register(TaskAttachment)
+class TaskAttachmentAdmin(admin.ModelAdmin):
+    list_display = ['file_name', 'task', 'user', 'file_type', 'is_proof_of_completion', 'created_at']
+    list_filter = ['file_type', 'is_proof_of_completion', 'created_at']
+    search_fields = ['file_name', 'description']
+
+
+@admin.register(ProjectMessage)
+class ProjectMessageAdmin(admin.ModelAdmin):
+    list_display = ['sender', 'project', 'message_preview', 'created_at', 'is_edited']
+    list_filter = ['project', 'created_at', 'is_edited']
+    search_fields = ['message', 'sender__username']
+    filter_horizontal = ['mentions', 'read_by']
+    
+    def message_preview(self, obj):
+        return obj.message[:50] + '...' if len(obj.message) > 50 else obj.message
+    message_preview.short_description = 'Message'
+

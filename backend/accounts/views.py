@@ -213,29 +213,80 @@ class DashboardStatsView(APIView):
     permission_classes = (IsAuthenticated,)
 
     def get(self, request):
+        from projects.models import Project, Task
+        from datetime import datetime, timedelta, timezone
+        from ai_service import ai_service
+        
         user = request.user
         
-        # Mock dashboard statistics (replace with real data later)
+        # Get real project and task statistics
+        projects = Project.objects.filter(
+            models.Q(owner=user) | models.Q(team_members=user)
+        ).distinct()
+        
+        total_projects = projects.count()
+        active_projects = projects.filter(status='active').count()
+        
+        # Get tasks
+        all_tasks = Task.objects.filter(project__in=projects)
+        active_tasks = all_tasks.exclude(status='completed').count()
+        completed_tasks = all_tasks.filter(status='completed').count()
+        
+        # Recent tasks (this week)
+        week_ago = datetime.now(timezone.utc) - timedelta(days=7)
+        completed_tasks_week = all_tasks.filter(
+            status='completed',
+            updated_at__gte=week_ago
+        ).count()
+        
+        # Overdue tasks
+        now = datetime.now(timezone.utc)
+        overdue_tasks = all_tasks.filter(
+            due_date__lt=now.date(),
+            status__in=['todo', 'in_progress']
+        ).count()
+        
+        # Team members count
+        team_members_count = 0
+        for project in projects:
+            team_members_count += project.team_members.count()
+        
+        # Generate AI insights
+        user_data = {
+            'total_projects': total_projects,
+            'active_projects': active_projects,
+            'completed_tasks_week': completed_tasks_week,
+            'overdue_tasks': overdue_tasks,
+            'team_members': team_members_count,
+            'avg_completion_time': 'N/A'
+        }
+        
+        ai_insights_data = ai_service.generate_insights(user_data) if ai_service.enabled else {}
+        
         stats = {
             'user': {
                 'id': user.id,
                 'username': user.username,
                 'email': user.email,
-                'full_name': f"{user.first_name} {user.last_name}",
+                'full_name': f"{user.first_name} {user.last_name}".strip() or user.username,
                 'member_since': user.date_joined,
             },
             'stats': {
-                'total_projects': 0,
-                'active_tasks': 0,
-                'completed_tasks': 0,
-                'team_members': 0,
-                'pending_approvals': 0,
+                'total_projects': total_projects,
+                'active_tasks': active_tasks,
+                'completed_tasks': completed_tasks,
+                'team_members': team_members_count,
+                'overdue_tasks': overdue_tasks,
             },
-            'recent_activity': [],
+            'recent_activity': [],  # Could be populated from ProjectActivity
             'ai_insights': {
-                'enabled': True,
-                'predictions_today': 0,
-                'automation_runs': 0,
+                'enabled': ai_service.enabled,
+                'productivity_score': ai_insights_data.get('productivity_score', 0),
+                'trend': ai_insights_data.get('trend', 'stable'),
+                'key_insights': ai_insights_data.get('key_insights', []),
+                'predictions': ai_insights_data.get('predictions', []),
+                'automation_suggestions': ai_insights_data.get('automation_suggestions', []),
+                'focus_areas': ai_insights_data.get('focus_areas', []),
             },
             'security': {
                 'mfa_enabled': False,

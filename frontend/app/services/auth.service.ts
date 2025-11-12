@@ -64,6 +64,7 @@ export interface User {
     email: string;
     first_name: string;
     last_name: string;
+    role: 'manager' | 'member' | 'admin';
 }
 
 export interface LoginResponse {
@@ -102,13 +103,18 @@ export interface DashboardStats {
         active_tasks: number;
         completed_tasks: number;
         team_members: number;
-        pending_approvals: number;
+        pending_approvals?: number;
+        overdue_tasks?: number;
     };
     recent_activity: any[];
     ai_insights: {
         enabled: boolean;
-        predictions_today: number;
-        automation_runs: number;
+        productivity_score?: number;
+        trend?: 'improving' | 'stable' | 'declining';
+        key_insights?: string[];
+        predictions?: string[];
+        automation_suggestions?: string[];
+        focus_areas?: string[];
     };
     security: {
         mfa_enabled: boolean;

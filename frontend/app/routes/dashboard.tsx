@@ -111,38 +111,104 @@ function DashboardContent() {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
                     {/* AI Insights */}
                     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-700">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg">
-                                <Brain className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg">
+                                    <Brain className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
+                                </div>
+                                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                                    AI Insights
+                                </h3>
                             </div>
-                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                                AI Insights
-                            </h3>
+                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${stats?.ai_insights.enabled
+                                ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                                : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                                }`}>
+                                {stats?.ai_insights.enabled ? 'Active' : 'Inactive'}
+                            </span>
                         </div>
-                        <div className="space-y-3">
-                            <div className="flex justify-between items-center">
-                                <span className="text-gray-600 dark:text-gray-400">Status</span>
-                                <span className="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full text-sm font-medium">
-                                    {stats?.ai_insights.enabled ? 'Active' : 'Inactive'}
-                                </span>
+
+                        {stats?.ai_insights.enabled ? (
+                            <div className="space-y-4">
+                                {/* Productivity Score */}
+                                <div>
+                                    <div className="flex justify-between items-center mb-2">
+                                        <span className="text-sm text-gray-600 dark:text-gray-400">
+                                            Productivity Score
+                                        </span>
+                                        <span className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
+                                            {stats.ai_insights.productivity_score || 0}%
+                                        </span>
+                                    </div>
+                                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                                        <div
+                                            className="bg-indigo-600 h-2 rounded-full transition-all"
+                                            style={{ width: `${stats.ai_insights.productivity_score || 0}%` }}
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Trend */}
+                                {stats.ai_insights.trend && (
+                                    <div className="flex items-center gap-2">
+                                        <TrendingUp className={`w-4 h-4 ${stats.ai_insights.trend === 'improving'
+                                            ? 'text-green-600'
+                                            : stats.ai_insights.trend === 'declining'
+                                                ? 'text-red-600'
+                                                : 'text-gray-600'
+                                            }`} />
+                                        <span className="text-sm text-gray-600 dark:text-gray-400">
+                                            Trend: <span className="font-semibold capitalize">{stats.ai_insights.trend}</span>
+                                        </span>
+                                    </div>
+                                )}
+
+                                {/* Key Insights */}
+                                {stats.ai_insights.key_insights && stats.ai_insights.key_insights.length > 0 && (
+                                    <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+                                        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">
+                                            KEY INSIGHTS
+                                        </p>
+                                        <ul className="space-y-1">
+                                            {stats.ai_insights.key_insights.slice(0, 3).map((insight, idx) => (
+                                                <li key={idx} className="text-sm text-gray-700 dark:text-gray-300 flex items-start gap-2">
+                                                    <span className="text-indigo-600 dark:text-indigo-400 mt-1">•</span>
+                                                    <span>{insight}</span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
+
+                                {/* Focus Areas */}
+                                {stats.ai_insights.focus_areas && stats.ai_insights.focus_areas.length > 0 && (
+                                    <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+                                        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">
+                                            FOCUS AREAS
+                                        </p>
+                                        <div className="flex flex-wrap gap-2">
+                                            {stats.ai_insights.focus_areas.slice(0, 3).map((area, idx) => (
+                                                <span
+                                                    key={idx}
+                                                    className="px-2 py-1 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300 rounded text-xs"
+                                                >
+                                                    {area}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
-                            <div className="flex justify-between items-center">
-                                <span className="text-gray-600 dark:text-gray-400">
-                                    Predictions Today
-                                </span>
-                                <span className="text-gray-900 dark:text-white font-semibold">
-                                    {stats?.ai_insights.predictions_today || 0}
-                                </span>
+                        ) : (
+                            <div className="text-center py-8">
+                                <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">
+                                    AI insights are currently unavailable
+                                </p>
+                                <p className="text-xs text-gray-400 dark:text-gray-500">
+                                    Configure GEMINI_API_KEY to enable AI features
+                                </p>
                             </div>
-                            <div className="flex justify-between items-center">
-                                <span className="text-gray-600 dark:text-gray-400">
-                                    Automation Runs
-                                </span>
-                                <span className="text-gray-900 dark:text-white font-semibold">
-                                    {stats?.ai_insights.automation_runs || 0}
-                                </span>
-                            </div>
-                        </div>
+                        )}
                     </div>
 
                     {/* Security Status */}

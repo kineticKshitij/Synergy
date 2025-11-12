@@ -66,6 +66,7 @@ class Task(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='todo')
     priority = models.CharField(max_length=20, choices=PRIORITY_CHOICES, default='medium')
     assigned_to = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_tasks')
+    assigned_to_multiple = models.ManyToManyField(User, related_name='multi_assigned_tasks', blank=True, help_text="Multiple team members assigned to this task")
     
     # Impact on project progress (percentage contribution)
     impact = models.DecimalField(
@@ -208,3 +209,29 @@ class ProjectActivity(models.Model):
     
     def __str__(self):
         return f"{self.project.name} - {self.action}"
+
+
+class ProjectMessage(models.Model):
+    """Messages for project team communication"""
+    
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='messages')
+    sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_messages')
+    message = models.TextField()
+    parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, 
+                               related_name='replies', help_text="Parent message for threaded replies")
+    
+    # Optional: mention specific users
+    mentions = models.ManyToManyField(User, related_name='mentioned_in_messages', blank=True)
+    
+    # Read status tracking
+    read_by = models.ManyToManyField(User, related_name='read_messages', blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    is_edited = models.BooleanField(default=False)
+    
+    class Meta:
+        ordering = ['created_at']
+    
+    def __str__(self):
+        return f"{self.sender.username} in {self.project.name}: {self.message[:50]}"

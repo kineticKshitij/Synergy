@@ -6,6 +6,7 @@ import { ProtectedRoute } from '~/components/ProtectedRoute';
 import { TaskModal } from '~/components/TaskModal';
 import { Navbar } from '~/components/Navbar';
 import InviteTeamMemberModal from '~/components/InviteTeamMemberModal';
+import { Eye, X, FileText, Send, MessageSquare, Activity } from 'lucide-react';
 
 interface Project {
     id: number;
@@ -40,6 +41,7 @@ interface Task {
     } | null;
     due_date: string | null;
     created_at: string;
+    has_attachments?: boolean;
 }
 
 function ProjectDetailsContent() {
@@ -48,14 +50,22 @@ function ProjectDetailsContent() {
     const [project, setProject] = useState<Project | null>(null);
     const [tasks, setTasks] = useState<Task[]>([]);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<'overview' | 'tasks' | 'team' | 'activity'>('overview');
+    const [activeTab, setActiveTab] = useState<'overview' | 'tasks' | 'team' | 'activity' | 'messages'>('overview');
     const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
     const [editingTask, setEditingTask] = useState<Task | null>(null);
     const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+    const [showProofModal, setShowProofModal] = useState(false);
+    const [selectedTaskForProof, setSelectedTaskForProof] = useState<Task | null>(null);
+    const [taskProofs, setTaskProofs] = useState<any[]>([]);
+    const [activities, setActivities] = useState<any[]>([]);
+    const [messages, setMessages] = useState<any[]>([]);
+    const [newMessage, setNewMessage] = useState('');
 
     useEffect(() => {
         loadProject();
         loadTasks();
+        loadActivities();
+        loadMessages();
     }, [id]);
 
     const loadProject = async () => {
@@ -75,6 +85,37 @@ function ProjectDetailsContent() {
             setTasks(data);
         } catch (error) {
             console.error('Failed to load tasks:', error);
+        }
+    };
+
+    const loadActivities = async () => {
+        try {
+            const data = await projectService.getActivities({ project: id });
+            setActivities(data);
+        } catch (error) {
+            console.error('Failed to load activities:', error);
+        }
+    };
+
+    const loadMessages = async () => {
+        try {
+            const data = await projectService.getMessages({ project: id });
+            setMessages(data);
+        } catch (error) {
+            console.error('Failed to load messages:', error);
+        }
+    };
+
+    const handleSendMessage = async () => {
+        if (!newMessage.trim()) return;
+        
+        try {
+            await projectService.sendMessage(Number(id), newMessage);
+            setNewMessage('');
+            await loadMessages();
+        } catch (error) {
+            console.error('Failed to send message:', error);
+            alert('Failed to send message');
         }
     };
 
@@ -127,6 +168,19 @@ function ProjectDetailsContent() {
             await loadProject();
         } catch (error) {
             console.error('Failed to mark task as complete:', error);
+        }
+    };
+
+    const handleViewProof = async (task: Task, e: React.MouseEvent) => {
+        e.stopPropagation(); // Prevent opening the task modal
+        try {
+            const attachments = await projectService.getTaskAttachments(task.id);
+            setTaskProofs(attachments);
+            setSelectedTaskForProof(task);
+            setShowProofModal(true);
+        } catch (error) {
+            console.error('Failed to load proofs:', error);
+            alert('Failed to load proof files');
         }
     };
 
@@ -303,7 +357,7 @@ function ProjectDetailsContent() {
             <div className="border-b border-gray-800">
                 <div className="max-w-7xl mx-auto px-6">
                     <div className="flex gap-8">
-                        {['overview', 'tasks', 'team', 'activity'].map((tab) => (
+                        {['overview', 'tasks', 'team', 'activity', 'messages'].map((tab) => (
                             <button
                                 key={tab}
                                 onClick={() => setActiveTab(tab as any)}
@@ -451,6 +505,16 @@ function ProjectDetailsContent() {
                                                 </div>
                                             </div>
                                             <div className="ml-4 flex items-center gap-2">
+                                                {task.has_attachments && (
+                                                    <button
+                                                        onClick={(e) => handleViewProof(task, e)}
+                                                        className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm transition-colors flex items-center gap-1"
+                                                        title="View proof files"
+                                                    >
+                                                        <Eye className="w-3 h-3" />
+                                                        View Proof
+                                                    </button>
+                                                )}
                                                 {task.status !== 'done' && (
                                                     <button
                                                         onClick={(e) => handleMarkTaskComplete(task.id, e)}
@@ -537,10 +601,93 @@ function ProjectDetailsContent() {
                 {activeTab === 'activity' && (
                     <div>
                         <h2 className="text-2xl font-bold mb-6">Activity Timeline</h2>
-                        <div className="text-center py-12 bg-gray-800/50 border border-gray-700 rounded-lg">
-                            <div className="text-6xl mb-4">📊</div>
-                            <h3 className="text-xl font-semibold mb-2">Activity timeline coming soon</h3>
-                            <p className="text-gray-400">Track all project activities and changes here</p>
+                        {activities.length === 0 ? (
+                            <div className="text-center py-12 bg-gray-800/50 border border-gray-700 rounded-lg">
+                                <Activity className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+                                <h3 className="text-xl font-semibold mb-2">No activities yet</h3>
+                                <p className="text-gray-400">Project activities will appear here</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                {activities.map((activity) => (
+                                    <div key={activity.id} className="bg-gray-800/50 border border-gray-700 rounded-lg p-4">
+                                        <div className="flex items-start gap-4">
+                                            <div className="p-2 bg-blue-600/20 rounded-lg">
+                                                <Activity className="w-5 h-5 text-blue-400" />
+                                            </div>
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <span className="font-medium text-white">
+                                                        {activity.user?.username || 'System'}
+                                                    </span>
+                                                    <span className="text-sm text-gray-500">
+                                                        {new Date(activity.created_at).toLocaleString()}
+                                                    </span>
+                                                </div>
+                                                <p className="text-gray-300 mb-1">{activity.action}</p>
+                                                <p className="text-gray-400 text-sm">{activity.description}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {activeTab === 'messages' && (
+                    <div>
+                        <h2 className="text-2xl font-bold mb-6">Team Communication</h2>
+                        <div className="bg-gray-800/50 border border-gray-700 rounded-lg">
+                            {/* Messages List */}
+                            <div className="p-4 space-y-4 max-h-[500px] overflow-y-auto">
+                                {messages.length === 0 ? (
+                                    <div className="text-center py-12">
+                                        <MessageSquare className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+                                        <h3 className="text-xl font-semibold mb-2">No messages yet</h3>
+                                        <p className="text-gray-400">Start the conversation with your team</p>
+                                    </div>
+                                ) : (
+                                    messages.map((msg) => (
+                                        <div key={msg.id} className="flex gap-3">
+                                            <div className="flex-shrink-0 w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold">
+                                                {msg.sender.username.charAt(0).toUpperCase()}
+                                            </div>
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <span className="font-medium text-white">{msg.sender.username}</span>
+                                                    <span className="text-xs text-gray-500">
+                                                        {new Date(msg.created_at).toLocaleString()}
+                                                    </span>
+                                                </div>
+                                                <p className="text-gray-300">{msg.message}</p>
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                            
+                            {/* Message Input */}
+                            <div className="border-t border-gray-700 p-4">
+                                <div className="flex gap-2">
+                                    <input
+                                        type="text"
+                                        value={newMessage}
+                                        onChange={(e) => setNewMessage(e.target.value)}
+                                        onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                                        placeholder="Type your message..."
+                                        className="flex-1 px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-500"
+                                    />
+                                    <button
+                                        onClick={handleSendMessage}
+                                        disabled={!newMessage.trim()}
+                                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded-lg transition-colors flex items-center gap-2"
+                                    >
+                                        <Send className="w-4 h-4" />
+                                        Send
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 )}
@@ -557,6 +704,7 @@ function ProjectDetailsContent() {
                 onDelete={editingTask ? handleDeleteTask : undefined}
                 projectId={Number(id)}
                 task={editingTask}
+                teamMembers={project?.team_members || []}
             />
 
             {/* Invite Team Member Modal */}
@@ -572,6 +720,115 @@ function ProjectDetailsContent() {
                     }}
                 />
             )}
+
+            {/* View Proof Modal */}
+            {showProofModal && selectedTaskForProof && (
+                <ViewProofModal
+                    task={selectedTaskForProof}
+                    proofs={taskProofs}
+                    onClose={() => {
+                        setShowProofModal(false);
+                        setSelectedTaskForProof(null);
+                        setTaskProofs([]);
+                    }}
+                />
+            )}
+        </div>
+    );
+}
+
+function ViewProofModal({ task, proofs, onClose }: any) {
+    const getFileIcon = (fileType: string) => {
+        switch (fileType) {
+            case 'image': return '🖼️';
+            case 'video': return '🎥';
+            case 'document': return '📄';
+            default: return '📎';
+        }
+    };
+
+    const formatDate = (dateString: string) => {
+        return new Date(dateString).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-gray-800 rounded-lg max-w-2xl w-full p-6 max-h-[80vh] overflow-y-auto border border-gray-700">
+                <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-semibold text-white">
+                        Proof of Completion
+                    </h2>
+                    <button
+                        onClick={onClose}
+                        className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
+                    >
+                        <X className="w-5 h-5 text-gray-400" />
+                    </button>
+                </div>
+
+                <p className="text-sm text-gray-400 mb-6">
+                    Task: <span className="font-medium text-white">{task.title}</span>
+                </p>
+
+                {proofs.length === 0 ? (
+                    <div className="text-center py-8">
+                        <FileText className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+                        <p className="text-gray-500">
+                            No proof files uploaded yet
+                        </p>
+                    </div>
+                ) : (
+                    <div className="space-y-3">
+                        {proofs.map((proof: any) => (
+                            <div
+                                key={proof.id}
+                                className="flex items-center gap-3 p-4 border border-gray-700 rounded-lg hover:bg-gray-700/50 transition-colors"
+                            >
+                                <span className="text-2xl flex-shrink-0">
+                                    {getFileIcon(proof.file_type)}
+                                </span>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium text-white truncate">
+                                        {proof.file_name}
+                                    </p>
+                                    <p className="text-xs text-gray-400">
+                                        Uploaded {formatDate(proof.uploaded_at)}
+                                    </p>
+                                    {proof.description && (
+                                        <p className="text-xs text-gray-500 mt-1">
+                                            {proof.description}
+                                        </p>
+                                    )}
+                                </div>
+                                <a
+                                    href={proof.file}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-1.5 flex-shrink-0"
+                                >
+                                    <Eye className="w-4 h-4" />
+                                    View
+                                </a>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                <div className="mt-6 flex justify-end">
+                    <button
+                        onClick={onClose}
+                        className="px-4 py-2 bg-gray-700 text-gray-200 rounded-lg hover:bg-gray-600"
+                    >
+                        Close
+                    </button>
+                </div>
+            </div>
         </div>
     );
 }

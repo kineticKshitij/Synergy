@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Form, useNavigate, Link } from 'react-router';
 import { useAuth } from '~/contexts/AuthContext';
+import authService from '~/services/auth.service';
 import { Lock, Mail, AlertCircle } from 'lucide-react';
 import type { Route } from './+types/login';
 
@@ -26,7 +27,17 @@ export default function Login() {
 
         try {
             await login(username, password);
-            navigate('/dashboard');
+            
+            // Get user profile to determine redirect
+            const userProfile = await authService.getProfile();
+            
+            // Redirect based on user role
+            if (userProfile.role === 'member') {
+                navigate('/team-dashboard');
+            } else {
+                // 'manager' or 'admin' go to project manager dashboard
+                navigate('/dashboard');
+            }
         } catch (err: any) {
             setError(err.response?.data?.detail || 'Invalid username or password');
         } finally {
@@ -67,7 +78,7 @@ export default function Login() {
                                 htmlFor="username"
                                 className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
                             >
-                                Username
+                                Username or Email
                             </label>
                             <div className="relative">
                                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -77,7 +88,7 @@ export default function Login() {
                                     value={username}
                                     onChange={(e) => setUsername(e.target.value)}
                                     className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors"
-                                    placeholder="Enter your username"
+                                    placeholder="Enter your username or email"
                                     required
                                     disabled={isLoading}
                                 />
