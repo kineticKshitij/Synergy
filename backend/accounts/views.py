@@ -13,11 +13,16 @@ from django.template.loader import render_to_string
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
 from django.conf import settings
+from django.db import models
 from django_ratelimit.decorators import ratelimit
 from django.utils.decorators import method_decorator
 from django_ratelimit.exceptions import Ratelimited
-from .serializers import RegisterSerializer, UserSerializer, SecurityEventSerializer
-from .models import SecurityEvent
+from .serializers import (
+    RegisterSerializer, UserSerializer, SecurityEventSerializer,
+    UserProfileSerializer, TeamMemberInvitationSerializer, UserDetailSerializer
+)
+from .models import SecurityEvent, UserProfile
+from .utils import create_invited_user, send_invitation_email
 from rest_framework import generics
 
 
@@ -445,3 +450,126 @@ class SecurityEventListView(generics.ListAPIView):
         if user.is_staff or user.is_superuser:
             return SecurityEvent.objects.all()
         return SecurityEvent.objects.filter(user=user)
+
+
+class InviteTeamMemberView(APIView):
+    """
+    Invite a new team member to a project.
+    Creates user account, generates custom Synergy email and password,
+    sends invitation email with credentials.
+    """
+    permission_classes = (IsAuthenticated,)
+    
+    def post(self, request):
+        serializer = TeamMemberInvitationSerializer(data=request.data)
+        
+        if not serializer.is_valid():
+            return Response(
+                {'error': 'Invalid data', 'details': serializer.errors},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        data = serializer.validated_data
+        
+        # Import Project model here to avoid circular imports
+        from projects.models import Project
+        
+        # Verify project exists and user has permission
+        try:
+            project = Project.objects.get(id=data['project_id'])
+        except Project.DoesNotExist:
+            return Response(
+                {'error': 'Project not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Check if user is project owner or manager
+        user_profile = request.user.profile
+        if project.owner != request.user and user_profile.role not in ['manager', 'admin']:
+            return Response(
+                {'error': 'You do not have permission to invite team members to this project'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Create invited user
+        user, password, custom_email = create_invited_user(
+            email=data['email'],
+            first_name=data['first_name'],
+            last_name=data['last_name'],
+            role=data.get('role', 'member'),
+            department=data.get('department', ''),
+            position=data.get('position', ''),
+            project=project,
+            invited_by=request.user
+        )
+        
+        if not user:
+            return Response(
+                {'error': 'Failed to create user account'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        
+        # Send invitation email
+        email_sent = send_invitation_email(
+            user=user,
+            custom_email=custom_email,
+            password=password,
+            project_name=project.name,
+            invited_by=request.user
+        )
+        
+        # Log invitation event
+        try:
+            SecurityEvent.objects.create(
+                event_type='other',
+                user=request.user,
+                username=request.user.username,
+                ip_address=get_client_ip(request),
+                description=f'Invited {user.email} to project {project.name}',
+                metadata={
+                    'invited_user_id': user.id,
+                    'project_id': project.id,
+                    'custom_email': custom_email
+                }
+            )
+        except Exception:
+            pass
+        
+        return Response({
+            'message': 'Team member invited successfully',
+            'user': UserDetailSerializer(user).data,
+            'custom_email': custom_email,
+            'email_sent': email_sent,
+            'credentials_info': 'Temporary password has been sent to the user\'s email'
+        }, status=status.HTTP_201_CREATED)
+
+
+class MyUserProfileDetailView(generics.RetrieveUpdateAPIView):
+    """View and update extended user profile with UserProfile model"""
+    permission_classes = (IsAuthenticated,)
+    serializer_class = UserProfileSerializer
+    
+    def get_object(self):
+        return self.request.user.profile
+
+
+class TeamMemberListView(generics.ListAPIView):
+    """List all team members for projects where the user is a member"""
+    permission_classes = (IsAuthenticated,)
+    serializer_class = UserDetailSerializer
+    
+    def get_queryset(self):
+        user = self.request.user
+        # Get all projects where user is owner or team member
+        from projects.models import Project
+        user_projects = Project.objects.filter(
+            models.Q(owner=user) | models.Q(team_members=user)
+        ).distinct()
+        
+        # Get all team members from these projects
+        team_member_ids = set()
+        for project in user_projects:
+            team_member_ids.update(project.team_members.values_list('id', flat=True))
+            team_member_ids.add(project.owner.id)
+        
+        return User.objects.filter(id__in=team_member_ids).distinct()

@@ -2,13 +2,15 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.parsers import MultiPartParser, FormParser
 from django.shortcuts import get_object_or_404
 from django.contrib.auth.models import User
+from django.db import models
 
-from .models import Project, Task, Comment, ProjectActivity
+from .models import Project, Task, Comment, ProjectActivity, TaskAttachment
 from .serializers import (
     ProjectSerializer, TaskSerializer, CommentSerializer,
-    ProjectActivitySerializer
+    ProjectActivitySerializer, TaskAttachmentSerializer
 )
 
 
@@ -187,5 +189,66 @@ class ProjectActivityViewSet(viewsets.ReadOnlyModelViewSet):
         ).distinct()
 
 
-# Fix the import for Q
-from django.db import models
+class TaskAttachmentViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for uploading and managing task attachments (files)
+    Supports images, videos, and documents
+    """
+    serializer_class = TaskAttachmentSerializer
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+    
+    def get_queryset(self):
+        """Only return attachments from tasks user has access to"""
+        user = self.request.user
+        return TaskAttachment.objects.filter(
+            models.Q(task__project__owner=user) | models.Q(task__project__team_members=user)
+        ).distinct()
+    
+    def perform_create(self, serializer):
+        """Save attachment with current user"""
+        attachment = serializer.save(user=self.request.user)
+        
+        # Log activity
+        ProjectActivity.objects.create(
+            project=attachment.task.project,
+            user=self.request.user,
+            action='file_uploaded',
+            description=f'Uploaded file "{attachment.file_name}" to task: {attachment.task.title}',
+            metadata={
+                'file_type': attachment.file_type,
+                'file_size': attachment.file_size,
+                'is_proof': attachment.is_proof_of_completion
+            }
+        )
+    
+    @action(detail=False, methods=['get'])
+    def by_task(self, request):
+        """Get all attachments for a specific task"""
+        task_id = request.query_params.get('task_id')
+        if not task_id:
+            return Response(
+                {'error': 'task_id parameter is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        attachments = self.get_queryset().filter(task_id=task_id)
+        serializer = self.get_serializer(attachments, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'])
+    def proof_of_completion(self, request):
+        """Get all proof of completion files for a specific task"""
+        task_id = request.query_params.get('task_id')
+        if not task_id:
+            return Response(
+                {'error': 'task_id parameter is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        attachments = self.get_queryset().filter(
+            task_id=task_id, 
+            is_proof_of_completion=True
+        )
+        serializer = self.get_serializer(attachments, many=True)
+        return Response(serializer.data)

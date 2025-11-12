@@ -9,7 +9,10 @@ from .views import (
     PasswordResetRequestView,
     PasswordResetConfirmView,
     DashboardStatsView,
-    SecurityEventListView
+    SecurityEventListView,
+    InviteTeamMemberView,
+    MyUserProfileDetailView,
+    TeamMemberListView
 )
 
 urlpatterns = [
@@ -25,8 +28,13 @@ urlpatterns = [
     
     # User
     path('profile/', UserProfileView.as_view(), name='profile'),
+    path('profile/extended/', MyUserProfileDetailView.as_view(), name='profile_extended'),
     path('change-password/', ChangePasswordView.as_view(), name='change_password'),
     path('dashboard/', DashboardStatsView.as_view(), name='dashboard'),
+    
+    # Team Members
+    path('invite/', InviteTeamMemberView.as_view(), name='invite_team_member'),
+    path('team-members/', TeamMemberListView.as_view(), name='team_members'),
     
     # Security
     path('security-events/', SecurityEventListView.as_view(), name='security_events'),

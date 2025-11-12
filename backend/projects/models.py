@@ -152,6 +152,46 @@ class Comment(models.Model):
         return f"Comment by {self.user.username} on {self.task.title}"
 
 
+class TaskAttachment(models.Model):
+    """File attachments for tasks (proof of completion, documents, etc.)"""
+    
+    FILE_TYPE_CHOICES = [
+        ('image', 'Image'),
+        ('video', 'Video'),
+        ('document', 'Document'),
+        ('other', 'Other'),
+    ]
+    
+    task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='attachments')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, help_text="User who uploaded the file")
+    file = models.FileField(upload_to='task_attachments/%Y/%m/%d/')
+    file_type = models.CharField(max_length=20, choices=FILE_TYPE_CHOICES, default='other')
+    file_name = models.CharField(max_length=255)
+    file_size = models.BigIntegerField(help_text="File size in bytes")
+    description = models.TextField(blank=True, help_text="Optional description of the attachment")
+    is_proof_of_completion = models.BooleanField(default=False, 
+                                                  help_text="Mark as proof of task completion")
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.file_name} - {self.task.title}"
+    
+    def save(self, *args, **kwargs):
+        """Auto-detect file type based on extension"""
+        if not self.file_type or self.file_type == 'other':
+            ext = self.file_name.split('.')[-1].lower()
+            if ext in ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg']:
+                self.file_type = 'image'
+            elif ext in ['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mkv']:
+                self.file_type = 'video'
+            elif ext in ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt']:
+                self.file_type = 'document'
+        super().save(*args, **kwargs)
+
+
 class ProjectActivity(models.Model):
     """Activity log for project actions"""
     

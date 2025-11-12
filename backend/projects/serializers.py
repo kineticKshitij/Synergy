@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import Project, Task, Comment, ProjectActivity
+from .models import Project, Task, Comment, ProjectActivity, TaskAttachment
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -68,3 +68,66 @@ class ProjectActivitySerializer(serializers.ModelSerializer):
         model = ProjectActivity
         fields = ['id', 'project', 'user', 'action', 'description', 'metadata', 'created_at']
         read_only_fields = ['created_at']
+
+
+class TaskAttachmentSerializer(serializers.ModelSerializer):
+    """Serializer for task file attachments"""
+    user = UserSerializer(read_only=True)
+    file_url = serializers.SerializerMethodField()
+    file_size_mb = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = TaskAttachment
+        fields = [
+            'id', 'task', 'user', 'file', 'file_url', 'file_type', 
+            'file_name', 'file_size', 'file_size_mb', 'description',
+            'is_proof_of_completion', 'created_at'
+        ]
+        read_only_fields = ['id', 'user', 'file_type', 'file_size', 'created_at']
+    
+    def get_file_url(self, obj):
+        """Get full URL for the file"""
+        request = self.context.get('request')
+        if obj.file and hasattr(obj.file, 'url'):
+            if request is not None:
+                return request.build_absolute_uri(obj.file.url)
+            return obj.file.url
+        return None
+    
+    def get_file_size_mb(self, obj):
+        """Convert file size to MB for display"""
+        if obj.file_size:
+            return round(obj.file_size / (1024 * 1024), 2)
+        return 0
+    
+    def validate_file(self, value):
+        """Validate file size and type"""
+        # Max file size: 50MB
+        max_size = 50 * 1024 * 1024  # 50MB in bytes
+        
+        if value.size > max_size:
+            raise serializers.ValidationError(
+                f"File size must not exceed 50MB. Your file is {round(value.size / (1024 * 1024), 2)}MB."
+            )
+        
+        # Allowed extensions
+        allowed_extensions = [
+            'jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg',  # Images
+            'mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mkv',  # Videos
+            'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt'  # Documents
+        ]
+        
+        ext = value.name.split('.')[-1].lower()
+        if ext not in allowed_extensions:
+            raise serializers.ValidationError(
+                f"File type '.{ext}' is not supported. Allowed types: {', '.join(allowed_extensions)}"
+            )
+        
+        return value
+    
+    def create(self, validated_data):
+        """Create attachment with auto-filled fields"""
+        file = validated_data.get('file')
+        validated_data['file_name'] = file.name
+        validated_data['file_size'] = file.size
+        return super().create(validated_data)

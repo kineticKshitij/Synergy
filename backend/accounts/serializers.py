@@ -5,7 +5,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.validators import EmailValidator, MinLengthValidator, MaxLengthValidator
 import re
 import html
-from .models import SecurityEvent
+from .models import SecurityEvent, UserProfile
 
 
 def sanitize_string(value):
@@ -269,3 +269,66 @@ class SecurityEventSerializer(serializers.ModelSerializer):
         model = SecurityEvent
         fields = ('id', 'event_type', 'user', 'username', 'ip_address', 'description', 'metadata', 'created_at')
         read_only_fields = fields
+
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    """Serializer for UserProfile model"""
+    user_email = serializers.EmailField(source='user.email', read_only=True)
+    username = serializers.CharField(source='user.username', read_only=True)
+    full_name = serializers.CharField(source='user.get_full_name', read_only=True)
+    
+    class Meta:
+        model = UserProfile
+        fields = (
+            'id', 'user', 'username', 'user_email', 'full_name',
+            'role', 'custom_email', 'phone_number', 'department', 
+            'position', 'bio', 'avatar', 'is_invited', 'invited_by',
+            'invitation_sent_at', 'created_at', 'updated_at'
+        )
+        read_only_fields = ('id', 'user', 'username', 'user_email', 'full_name', 
+                           'is_invited', 'invited_by', 'invitation_sent_at', 
+                           'created_at', 'updated_at')
+
+
+class TeamMemberInvitationSerializer(serializers.Serializer):
+    """Serializer for inviting team members"""
+    email = serializers.EmailField(required=True, validators=[validate_email_format])
+    first_name = serializers.CharField(required=True, max_length=50)
+    last_name = serializers.CharField(required=True, max_length=50)
+    role = serializers.ChoiceField(
+        choices=['member', 'manager'],
+        default='member',
+        help_text="Role: member or manager"
+    )
+    department = serializers.CharField(required=False, max_length=100, allow_blank=True)
+    position = serializers.CharField(required=False, max_length=100, allow_blank=True)
+    project_id = serializers.IntegerField(
+        required=True,
+        help_text="Project ID to associate the team member with"
+    )
+    
+    def validate_first_name(self, value):
+        return validate_name_format(value, "First name")
+    
+    def validate_last_name(self, value):
+        return validate_name_format(value, "Last name")
+    
+    def validate_email(self, value):
+        value = validate_email_format(value)
+        # Check if user already exists
+        if User.objects.filter(email=value).exists():
+            raise serializers.ValidationError(
+                "A user with this email already exists in the system."
+            )
+        return value
+
+
+class UserDetailSerializer(serializers.ModelSerializer):
+    """Extended user serializer with profile information"""
+    profile = UserProfileSerializer(read_only=True)
+    
+    class Meta:
+        model = User
+        fields = ('id', 'username', 'email', 'first_name', 'last_name', 
+                 'date_joined', 'last_login', 'profile')
+        read_only_fields = ('id', 'date_joined', 'last_login')
