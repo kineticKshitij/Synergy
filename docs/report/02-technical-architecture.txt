@@ -1,0 +1,548 @@
+================================================================================
+SYNERGYOS PROJECT REPORT
+SECTION 2: TECHNICAL ARCHITECTURE
+================================================================================
+
+ARCHITECTURE OVERVIEW
+================================================================================
+
+SynergyOS implements a modern 7-layer microservices-oriented architecture
+designed for scalability, maintainability, and high performance. Each layer
+has clearly defined responsibilities and communicates through well-defined
+interfaces.
+
+
+ARCHITECTURAL LAYERS
+================================================================================
+
+LAYER 1: PRESENTATION LAYER (Frontend)
+Technology: React Router v7.9.2
+Purpose: User interface and interaction
+Components:
+  - Single-Page Application (SPA)
+  - Server-Side Rendering (SSR) for initial load
+  - Client-side hydration for interactivity
+  - TypeScript for type safety
+  - Tailwind CSS for styling
+
+Key Features:
+  - File-based routing convention
+  - Nested layouts and routes
+  - Data loading with loaders
+  - Protected route components
+  - Global state with Context API
+  - Form handling with react-hook-form
+
+LAYER 2: API LAYER (Backend API)
+Technology: Django REST Framework 3.15.2
+Purpose: RESTful API endpoints
+Components:
+  - ViewSets for CRUD operations
+  - Serializers for validation
+  - Permission classes
+  - Authentication middleware
+  - Rate limiting middleware
+
+Key Features:
+  - JWT token authentication
+  - Pagination and filtering
+  - CORS handling
+  - API documentation (DRF browsable API)
+  - Request/response logging
+
+LAYER 3: BUSINESS LOGIC LAYER
+Technology: Django 5.2.7
+Purpose: Application business rules
+Components:
+  - Django models (domain objects)
+  - Signal handlers for events
+  - Custom managers and querysets
+  - Business rule validators
+  - Service layer patterns
+
+Key Features:
+  - Impact-weighted progress calculation
+  - Permission enforcement
+  - Activity tracking
+  - Webhook event triggering
+  - File type detection
+
+LAYER 4: DATA ACCESS LAYER
+Technology: Django ORM
+Purpose: Database abstraction
+Components:
+  - Model definitions
+  - Migration management
+  - Query optimization
+  - Transaction management
+
+Key Features:
+  - Parameterized queries (SQL injection prevention)
+  - select_related/prefetch_related optimization
+  - Database indexes
+  - Relationship management
+  - Aggregate functions
+
+LAYER 5: CACHING LAYER
+Technology: Redis 7
+Purpose: Performance optimization
+Components:
+  - Query result caching
+  - Session storage
+  - API response caching
+  - Temporary data storage
+
+Key Features:
+  - 87% cache hit ratio
+  - LRU eviction policy
+  - Automatic cache invalidation
+  - Connection pooling
+  - AOF persistence
+
+LAYER 6: MESSAGE QUEUE LAYER
+Technology: Celery 5.3.4 + Redis
+Purpose: Asynchronous task processing
+Components:
+  - Celery worker processes
+  - Celery beat scheduler
+  - Task queues
+  - Result backend
+
+Key Features:
+  - Webhook delivery queue
+  - Email notification queue
+  - Scheduled cleanup tasks
+  - Retry mechanism with exponential backoff
+  - Task result tracking
+
+LAYER 7: PROXY AND LOAD BALANCING
+Technology: Nginx Alpine
+Purpose: Request routing and optimization
+Components:
+  - Reverse proxy
+  - Static file server
+  - Load balancer (ready)
+  - SSL/TLS termination
+
+Key Features:
+  - Request routing to backend/frontend
+  - Static file caching
+  - Gzip compression
+  - Security headers
+  - Rate limiting (IP-based)
+
+
+SYSTEM ARCHITECTURE DIAGRAM
+================================================================================
+
+                            ┌─────────────────┐
+                            │   CLIENT        │
+                            │   (Browser)     │
+                            └────────┬────────┘
+                                     │
+                                     │ HTTP/HTTPS
+                                     │
+                            ┌────────▼────────┐
+                            │  NGINX (Port 80)│
+                            │  Reverse Proxy  │
+                            └────┬──────┬─────┘
+                                 │      │
+                    ┌────────────┘      └─────────────┐
+                    │                                  │
+         ┌──────────▼──────────┐           ┌─────────▼──────────┐
+         │   REACT FRONTEND    │           │  DJANGO BACKEND    │
+         │   (React Router v7) │           │  (DRF + Gunicorn)  │
+         │   Port 3000         │           │  Port 8000         │
+         └─────────────────────┘           └──────┬──────┬──────┘
+                                                   │      │
+                                    ┌──────────────┘      └──────────────┐
+                                    │                                     │
+                          ┌─────────▼──────────┐              ┌─────────▼─────────┐
+                          │  POSTGRESQL 16     │              │   REDIS 7         │
+                          │  Database          │              │   Cache + Broker  │
+                          │  Port 5432         │              │   Port 6379       │
+                          └────────────────────┘              └──────┬───────┬────┘
+                                                                     │       │
+                                                       ┌─────────────┘       └─────────────┐
+                                                       │                                    │
+                                            ┌──────────▼──────────┐           ┌────────────▼──────────┐
+                                            │  CELERY WORKER      │           │  CELERY BEAT          │
+                                            │  Async Tasks        │           │  Scheduled Tasks      │
+                                            └─────────────────────┘           └───────────────────────┘
+
+EXTERNAL INTEGRATIONS:
+┌──────────────────────────────────────────────────────────────┐
+│                     WEBHOOK DELIVERIES                        │
+│  Backend → External Services (GitHub, Slack, Custom URLs)    │
+└──────────────────────────────────────────────────────────────┘
+
+
+TECHNOLOGY STACK DETAILS
+================================================================================
+
+FRONTEND STACK:
+
+React Router v7.9.2:
+- Modern routing with nested layouts
+- Server-Side Rendering (SSR)
+- File-based routing convention
+- Built-in data loading patterns
+- TypeScript support
+
+TypeScript 5.x:
+- Static type checking
+- Interface definitions
+- Enhanced IDE support
+- Better code maintainability
+
+Vite 7.1.7:
+- Fast development server
+- Hot Module Replacement (HMR)
+- Optimized production builds
+- Plugin ecosystem
+
+Tailwind CSS 4.1.13:
+- Utility-first CSS framework
+- JIT (Just-In-Time) compilation
+- Responsive design utilities
+- Custom theming
+
+Additional Libraries:
+- Axios 1.12.2: HTTP client
+- react-hook-form 7.65.0: Form management
+- jwt-decode 4.0.0: Token parsing
+- Zod 4.1.12: Schema validation
+- Lucide React 0.546.0: Icon library
+
+
+BACKEND STACK:
+
+Django 5.2.7:
+- MTV (Model-Template-View) architecture
+- Admin interface
+- ORM for database abstraction
+- Middleware pipeline
+- Signal system
+
+Django REST Framework 3.15.2:
+- Serializers for data validation
+- ViewSets for CRUD operations
+- Permission system
+- Pagination and filtering
+- Browsable API
+
+djangorestframework-simplejwt 5.4.0:
+- JWT token generation
+- Token validation
+- Token blacklisting
+- Refresh token rotation
+
+Security Libraries:
+- django-cors-headers 4.7.0: CORS handling
+- django-ratelimit 4.1.0: Rate limiting
+- bleach 6.2.0: HTML sanitization
+
+Additional Libraries:
+- Pillow 11.1.0: Image processing
+- python-decouple 3.8: Configuration
+- google-generativeai 0.8.3: AI features
+
+
+DATABASE & CACHE:
+
+PostgreSQL 16-alpine:
+- ACID compliance
+- JSON field support
+- Full-text search
+- Advanced indexing
+- Connection pooling
+
+Redis 7-alpine:
+- In-memory data store
+- Pub/sub messaging
+- Persistent storage (AOF)
+- Sub-millisecond latency
+- LRU eviction
+
+django-redis 5.4.0:
+- Redis cache backend
+- Session storage
+- Connection pooling
+
+
+ASYNCHRONOUS PROCESSING:
+
+Celery 5.3.4:
+- Distributed task queue
+- Task scheduling
+- Retry mechanism
+- Result backend
+
+Task Types:
+- Webhook delivery
+- Email notifications
+- Background data processing
+- Scheduled cleanup
+
+
+INFRASTRUCTURE:
+
+Docker:
+- Container platform
+- Image management
+- Multi-stage builds
+- Health checks
+
+Docker Compose:
+- Multi-service orchestration
+- Network management
+- Volume management
+- Environment configuration
+
+Nginx Alpine:
+- Reverse proxy
+- Static file serving
+- Load balancing capability
+- SSL/TLS termination
+
+Gunicorn:
+- WSGI HTTP server
+- 4 worker processes
+- Graceful restarts
+- Production-ready
+
+
+DATABASE SCHEMA
+================================================================================
+
+TOTAL TABLES: 12
+
+AUTHENTICATION & USER MANAGEMENT:
+1. auth_user (Django built-in)
+   - User authentication data
+   - Fields: username, email, password, first_name, last_name
+   - Indexes: username (unique), email (unique)
+
+2. accounts_userprofile
+   - Extended user profile
+   - Fields: bio, location, phone, avatar, role, company
+   - Relationship: OneToOne with auth_user
+
+3. accounts_securityevent
+   - Security audit log
+   - Fields: user, event_type, ip_address, description, metadata
+   - Indexes: user_id, event_type, created_at
+   - Event Types: 9 (login_success, login_failed, logout, etc.)
+
+PROJECT MANAGEMENT:
+4. projects_project
+   - Project information
+   - Fields: name, description, status, priority, owner, team_members
+   - Indexes: owner_id, status, created_at
+   - ManyToMany: team_members
+
+5. projects_task
+   - Task details
+   - Fields: title, description, status, priority, assigned_to, impact
+   - Indexes: project_id, status, assigned_to_id
+   - ManyToMany: assigned_to_multiple
+
+6. projects_comment
+   - Task comments
+   - Fields: task, user, content
+   - Indexes: task_id, user_id, created_at
+
+7. projects_taskattachment
+   - File uploads
+   - Fields: task, file, file_type, file_size
+   - Indexes: task_id, user_id
+
+8. projects_projectactivity
+   - Activity audit trail
+   - Fields: project, user, action, description, metadata
+   - Indexes: project_id, user_id, created_at
+
+9. projects_projectmessage
+   - Team communication
+   - Fields: project, sender, message, parent (for threading)
+   - Indexes: project_id, sender_id, created_at
+   - ManyToMany: mentions, read_by
+
+WEBHOOK SYSTEM:
+10. webhooks_webhook
+    - Webhook configurations
+    - Fields: id (UUID), user, name, url, events, secret
+    - Indexes: user_id, is_active, created_at
+
+11. webhooks_webhookdelivery
+    - Delivery tracking
+    - Fields: id (UUID), webhook, event_type, payload, status
+    - Indexes: webhook_id, status, event_type, created_at
+
+12. webhooks_webhookevent
+    - Event type definitions
+    - Fields: event_type, display_name, description
+    - Indexes: event_type (unique)
+
+
+API ENDPOINT STRUCTURE
+================================================================================
+
+TOTAL ENDPOINTS: 50+
+
+BASE URL: /api/
+
+AUTHENTICATION ENDPOINTS (11):
+POST   /api/auth/register/              - User registration
+POST   /api/auth/login/                 - User login (JWT tokens)
+POST   /api/auth/logout/                - Logout (blacklist token)
+POST   /api/auth/token/refresh/         - Refresh access token
+GET    /api/auth/user/                  - Get current user
+PUT    /api/auth/user/update/           - Update user profile
+POST   /api/auth/change-password/       - Change password
+POST   /api/auth/password-reset/        - Request password reset
+POST   /api/auth/password-reset-confirm/ - Confirm password reset
+GET    /api/auth/security-events/       - List security events
+GET    /api/auth/health/                - Health check
+
+PROJECT ENDPOINTS (8):
+GET    /api/projects/                   - List all projects
+POST   /api/projects/                   - Create project
+GET    /api/projects/{id}/              - Get project details
+PUT    /api/projects/{id}/              - Update project
+DELETE /api/projects/{id}/              - Delete project
+POST   /api/projects/{id}/add_member/   - Add team member
+POST   /api/projects/{id}/remove_member/ - Remove team member
+GET    /api/projects/{id}/activities/   - List project activities
+
+TASK ENDPOINTS (9):
+GET    /api/tasks/                      - List all tasks
+POST   /api/tasks/                      - Create task
+GET    /api/tasks/{id}/                 - Get task details
+PUT    /api/tasks/{id}/                 - Update task
+DELETE /api/tasks/{id}/                 - Delete task
+POST   /api/tasks/{id}/add_comment/     - Add comment
+POST   /api/tasks/{id}/upload_attachment/ - Upload file
+GET    /api/tasks/{id}/comments/        - List comments
+GET    /api/tasks/{id}/attachments/     - List attachments
+
+WEBHOOK ENDPOINTS (7):
+GET    /api/webhooks/                   - List webhooks
+POST   /api/webhooks/                   - Create webhook
+GET    /api/webhooks/{id}/              - Get webhook details
+PUT    /api/webhooks/{id}/              - Update webhook
+DELETE /api/webhooks/{id}/              - Delete webhook
+GET    /api/webhooks/{id}/deliveries/   - List deliveries
+POST   /api/webhooks/{id}/test/         - Test webhook
+
+MESSAGE ENDPOINTS (6):
+GET    /api/messages/                   - List project messages
+POST   /api/messages/                   - Send message
+GET    /api/messages/{id}/              - Get message details
+PUT    /api/messages/{id}/              - Edit message
+DELETE /api/messages/{id}/              - Delete message
+POST   /api/messages/{id}/read/         - Mark as read
+
+
+ARCHITECTURAL PATTERNS
+================================================================================
+
+1. MODEL-VIEW-SERIALIZER PATTERN (Backend)
+   - Models: Database representation and business logic
+   - Serializers: Data validation and transformation
+   - Views: Request handling and response generation
+
+2. REPOSITORY PATTERN
+   - Django ORM acts as repository
+   - Abstracts database queries
+   - Consistent data access interface
+
+3. MIDDLEWARE PATTERN
+   - Request/response processing pipeline
+   - Security middleware (CORS, CSRF, Authentication)
+   - Logging and monitoring middleware
+   - Rate limiting middleware
+
+4. OBSERVER PATTERN (Django Signals)
+   - post_save: Task completion → Update project progress
+   - post_save: Project creation → Trigger webhook
+   - pre_delete: Cleanup related data
+
+5. FACTORY PATTERN
+   - ViewSet factories for API endpoints
+   - Serializer factories for data transformation
+
+6. CONTEXT PATTERN (Frontend)
+   - AuthContext for global authentication state
+   - Shared state across components
+   - Avoid prop drilling
+
+7. PROTECTED ROUTE PATTERN
+   - Authentication guards
+   - Redirect unauthorized users
+   - Preserve intended navigation
+
+
+SECURITY ARCHITECTURE
+================================================================================
+
+DEFENSE IN DEPTH (4 LAYERS):
+
+LAYER 1: Network Security (Nginx)
+- SSL/TLS encryption
+- Rate limiting at proxy level
+- Request filtering
+- DDoS protection (basic)
+
+LAYER 2: Application Security (Django)
+- JWT authentication
+- Permission checking
+- Input validation
+- Output encoding
+- Rate limiting
+
+LAYER 3: Database Security (PostgreSQL)
+- Parameterized queries
+- Connection encryption
+- User permissions
+- Backup encryption
+
+LAYER 4: Infrastructure Security (Docker)
+- Container isolation
+- Network segregation
+- Volume permissions
+- Secret management
+
+
+SCALABILITY DESIGN
+================================================================================
+
+HORIZONTAL SCALING:
+- Stateless backend (JWT tokens)
+- Multiple Gunicorn workers
+- Multiple Celery workers
+- Load balancing with Nginx
+- Database read replicas (planned)
+
+VERTICAL SCALING:
+- Database connection pooling
+- Redis caching reduces database load
+- Query optimization
+- Resource limits per container
+
+CACHING STRATEGY:
+- Database query results (Redis)
+- API responses (Redis)
+- Session data (Redis)
+- Static files (Nginx)
+
+ASYNCHRONOUS PROCESSING:
+- Webhook deliveries (Celery)
+- Email notifications (Celery)
+- Background tasks (Celery)
+- Scheduled cleanup (Celery Beat)
+
+
+================================================================================
+END OF TECHNICAL ARCHITECTURE
+================================================================================

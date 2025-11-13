@@ -1,0 +1,735 @@
+================================================================================
+SYNERGYOS PROJECT REPORT
+SECTION 5: DEPLOYMENT & OPERATIONS
+================================================================================
+
+DEPLOYMENT OVERVIEW
+================================================================================
+
+SynergyOS uses Docker containerization for consistent deployment across
+development, staging, and production environments. The deployment strategy
+emphasizes simplicity, reliability, and scalability.
+
+
+DOCKER ARCHITECTURE
+================================================================================
+
+CONTAINER SERVICES (7):
+
+1. POSTGRESQL (postgres:16-alpine)
+   Purpose: Primary database
+   Port: 5432 (internal)
+   Volume: postgres_data (persistent)
+   Health Check: pg_isready
+   Configuration:
+     - Database: synergyos
+     - User: synergyos_user
+     - Max Connections: 100
+     - Shared Buffers: 256MB
+
+2. REDIS (redis:7-alpine)
+   Purpose: Cache and message broker
+   Port: 6379 (internal)
+   Volume: redis_data (persistent AOF)
+   Health Check: redis-cli ping
+   Configuration:
+     - Max Memory: 512MB
+     - Eviction Policy: allkeys-lru
+     - AOF: Yes (Append-Only File)
+
+3. DJANGO BACKEND (custom build)
+   Purpose: REST API server
+   Port: 8000 (internal)
+   Volumes: static_volume, media_volume
+   Health Check: HTTP GET /api/auth/health/
+   Configuration:
+     - Workers: 4 (Gunicorn)
+     - Timeout: 30 seconds
+     - Max Requests: 1000
+
+4. CELERY WORKER (custom build)
+   Purpose: Asynchronous task processing
+   No exposed ports
+   Configuration:
+     - Concurrency: 4
+     - Max Tasks Per Child: 1000
+     - Soft Time Limit: 300s
+     - Hard Time Limit: 600s
+
+5. CELERY BEAT (custom build)
+   Purpose: Scheduled task scheduler
+   No exposed ports
+   Configuration:
+     - Schedule: Defined in settings.py
+     - Database: PostgreSQL
+
+6. REACT FRONTEND (custom build)
+   Purpose: User interface
+   Port: 3000 (internal)
+   Build: Multi-stage (Node 20)
+   Configuration:
+     - SSR: Enabled
+     - Port: 3000
+
+7. NGINX (nginx:alpine)
+   Purpose: Reverse proxy and load balancer
+   Ports: 80:80, 443:443 (public)
+   Volumes: static_volume, media_volume
+   Configuration:
+     - Worker Connections: 1024
+     - Client Max Body Size: 50MB
+
+
+DOCKER COMPOSE CONFIGURATION
+================================================================================
+
+File: docker-compose.yml
+
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: synergyos-db
+    environment:
+      POSTGRES_DB: synergyos
+      POSTGRES_USER: synergyos_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - synergyos-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U synergyos_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: synergyos-redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - synergyos-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: synergyos-backend
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
+             gunicorn SynergyOS.wsgi:application --bind 0.0.0.0:8000 --workers 4"
+    environment:
+      - DEBUG=${DEBUG:-False}
+      - SECRET_KEY=${SECRET_KEY}
+      - DB_NAME=synergyos
+      - DB_USER=synergyos_user
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_HOST=db
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - static_volume:/app/staticfiles
+      - media_volume:/app/media
+    networks:
+      - synergyos-network
+
+  celery_worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: synergyos-celery-worker
+    command: celery -A SynergyOS worker --loglevel=info --concurrency=4
+    environment:
+      - DEBUG=${DEBUG:-False}
+      - SECRET_KEY=${SECRET_KEY}
+      - DB_NAME=synergyos
+      - DB_USER=synergyos_user
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_HOST=db
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+    depends_on:
+      - db
+      - redis
+    networks:
+      - synergyos-network
+
+  celery_beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: synergyos-celery-beat
+    command: celery -A SynergyOS beat --loglevel=info
+    environment:
+      - DEBUG=${DEBUG:-False}
+      - SECRET_KEY=${SECRET_KEY}
+      - DB_NAME=synergyos
+      - DB_USER=synergyos_user
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_HOST=db
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - db
+      - redis
+    networks:
+      - synergyos-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: synergyos-frontend
+    ports:
+      - "3000:3000"
+    networks:
+      - synergyos-network
+
+  nginx:
+    image: nginx:alpine
+    container_name: synergyos-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - static_volume:/app/staticfiles:ro
+      - media_volume:/app/media:ro
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - synergyos-network
+
+networks:
+  synergyos-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  static_volume:
+  media_volume:
+
+
+DOCKERFILE CONFIGURATIONS
+================================================================================
+
+BACKEND DOCKERFILE:
+
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y \
+    postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+RUN mkdir -p /app/staticfiles /app/media
+
+RUN useradd -m appuser && chown -R appuser:appuser /app
+USER appuser
+
+EXPOSE 8000
+
+CMD ["gunicorn", "SynergyOS.wsgi:application", "--bind", "0.0.0.0:8000"]
+
+
+FRONTEND DOCKERFILE (Multi-stage):
+
+# Stage 1: Build
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+RUN npm ci
+
+COPY . .
+RUN npm run build
+
+# Stage 2: Production
+FROM node:20-alpine
+
+WORKDIR /app
+
+COPY --from=builder /app/build ./build
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./
+
+EXPOSE 3000
+
+CMD ["npm", "start"]
+
+
+NGINX CONFIGURATION
+================================================================================
+
+File: nginx/nginx.conf
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    include /etc/nginx/mime.types;
+    default_type application/octet-stream;
+
+    upstream backend {
+        server backend:8000;
+    }
+
+    upstream frontend {
+        server frontend:3000;
+    }
+
+    server {
+        listen 80;
+        server_name localhost;
+
+        client_max_body_size 50M;
+
+        # Security headers
+        add_header X-Frame-Options "DENY" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-XSS-Protection "1; mode=block" always;
+
+        # Backend API
+        location /api/ {
+            proxy_pass http://backend;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        # Django admin
+        location /admin/ {
+            proxy_pass http://backend;
+            proxy_set_header Host $host;
+        }
+
+        # Static files
+        location /static/ {
+            alias /app/staticfiles/;
+            expires 30d;
+            add_header Cache-Control "public, immutable";
+        }
+
+        # Media files
+        location /media/ {
+            alias /app/media/;
+            expires 7d;
+        }
+
+        # Frontend
+        location / {
+            proxy_pass http://frontend;
+            proxy_set_header Host $host;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection 'upgrade';
+        }
+    }
+}
+
+
+ENVIRONMENT CONFIGURATION
+================================================================================
+
+ENVIRONMENT VARIABLES (.env):
+
+# Django Settings
+SECRET_KEY=your-secret-key-here
+DEBUG=False
+ALLOWED_HOSTS=localhost,127.0.0.1,yourdomain.com
+
+# Database
+DB_PASSWORD=secure_password_here
+
+# CORS
+CORS_ALLOWED_ORIGINS=http://localhost,https://yourdomain.com
+CSRF_TRUSTED_ORIGINS=http://localhost,https://yourdomain.com
+
+# JWT
+JWT_ACCESS_TOKEN_LIFETIME=60
+JWT_REFRESH_TOKEN_LIFETIME=1440
+
+# Email (SMTP)
+EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_USE_TLS=True
+EMAIL_HOST_USER=your-email@gmail.com
+EMAIL_HOST_PASSWORD=your-app-password
+DEFAULT_FROM_EMAIL=noreply@yourdomain.com
+
+# Redis & Celery
+REDIS_URL=redis://redis:6379/0
+CELERY_BROKER_URL=redis://redis:6379/0
+CELERY_RESULT_BACKEND=redis://redis:6379/0
+
+# AI (Optional)
+GEMINI_API_KEY=your-api-key-here
+
+# Production Settings
+SECURE_SSL_REDIRECT=True
+SESSION_COOKIE_SECURE=True
+CSRF_COOKIE_SECURE=True
+
+
+DEPLOYMENT PROCESS
+================================================================================
+
+DEVELOPMENT DEPLOYMENT:
+
+1. Clone Repository
+   git clone https://github.com/kineticKshitij/Synergy.git
+   cd Synergy
+
+2. Configure Environment
+   cp .env.example .env
+   # Edit .env with your settings
+
+3. Build Containers
+   docker-compose build
+
+4. Start Services
+   docker-compose up -d
+
+5. Run Migrations
+   docker-compose exec backend python manage.py migrate
+
+6. Create Superuser
+   docker-compose exec backend python manage.py createsuperuser
+
+7. Collect Static Files
+   docker-compose exec backend python manage.py collectstatic --noinput
+
+8. Verify Deployment
+   docker-compose ps
+   curl http://localhost/api/auth/health/
+
+9. Access Application
+   Frontend: http://localhost
+   API: http://localhost/api/
+   Admin: http://localhost/admin/
+
+
+PRODUCTION DEPLOYMENT:
+
+Additional Steps for Production:
+
+1. Security Configuration
+   - Set DEBUG=False
+   - Generate strong SECRET_KEY
+   - Configure ALLOWED_HOSTS
+   - Enable HTTPS/TLS
+   - Set secure cookie flags
+
+2. SSL/TLS Setup
+   - Obtain SSL certificate (Let's Encrypt)
+   - Configure Nginx with SSL
+   - Enable HSTS headers
+   - Redirect HTTP to HTTPS
+
+3. Database Configuration
+   - Set strong database password
+   - Enable connection pooling
+   - Configure backup strategy
+   - Set up replication (optional)
+
+4. Monitoring Setup
+   - Configure logging
+   - Set up error tracking (Sentry)
+   - Enable uptime monitoring
+   - Configure alerts
+
+5. Performance Tuning
+   - Increase Gunicorn workers (2*CPU+1)
+   - Configure Redis max memory
+   - Optimize database connections
+   - Enable Nginx gzip compression
+
+6. Backup Strategy
+   - Database: pg_dump daily
+   - Media files: rsync/cloud storage
+   - Configuration: Version control
+   - Automated backup scripts
+
+
+DEPLOYMENT COMMANDS
+================================================================================
+
+COMMON OPERATIONS:
+
+View Logs:
+docker-compose logs -f backend
+docker-compose logs -f celery_worker
+docker-compose logs --tail=100 nginx
+
+Restart Services:
+docker-compose restart backend
+docker-compose restart celery_worker
+docker-compose restart nginx
+
+Stop All Services:
+docker-compose stop
+
+Start All Services:
+docker-compose start
+
+Rebuild and Restart:
+docker-compose build backend
+docker-compose up -d backend
+
+Database Operations:
+# Create backup
+docker-compose exec db pg_dump -U synergyos_user synergyos > backup.sql
+
+# Restore backup
+docker-compose exec -T db psql -U synergyos_user synergyos < backup.sql
+
+# Run migrations
+docker-compose exec backend python manage.py migrate
+
+# Create migrations
+docker-compose exec backend python manage.py makemigrations
+
+Shell Access:
+docker-compose exec backend python manage.py shell
+docker-compose exec db psql -U synergyos_user synergyos
+docker-compose exec redis redis-cli
+
+Resource Usage:
+docker stats
+
+
+MONITORING & LOGGING
+================================================================================
+
+APPLICATION LOGGING:
+
+Django Logging Configuration:
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'file': {
+            'level': 'INFO',
+            'class': 'logging.FileHandler',
+            'filename': '/var/log/synergyos/django.log',
+            'formatter': 'verbose',
+        },
+        'console': {
+            'level': 'DEBUG',
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+    },
+    'root': {
+        'handlers': ['console', 'file'],
+        'level': 'INFO',
+    },
+}
+
+Log Levels:
+- DEBUG: Detailed diagnostic information
+- INFO: General informational messages
+- WARNING: Warning messages
+- ERROR: Error messages
+- CRITICAL: Critical errors
+
+Log Locations:
+- Backend: /var/log/synergyos/django.log
+- Celery Worker: /var/log/synergyos/celery-worker.log
+- Celery Beat: /var/log/synergyos/celery-beat.log
+- Nginx Access: /var/log/nginx/access.log
+- Nginx Error: /var/log/nginx/error.log
+
+
+HEALTH CHECKS:
+
+Health Check Endpoints:
+GET /api/auth/health/
+
+Response:
+{
+  "status": "healthy",
+  "timestamp": "2025-11-13T10:30:00Z",
+  "version": "1.0.0",
+  "services": {
+    "database": "ok",
+    "redis": "ok",
+    "celery": "ok"
+  }
+}
+
+Container Health Checks:
+- PostgreSQL: pg_isready (10s interval)
+- Redis: redis-cli ping (10s interval)
+- Backend: HTTP GET /api/auth/health/ (30s interval)
+
+
+BACKUP & RECOVERY
+================================================================================
+
+BACKUP STRATEGY:
+
+Daily Automated Backups:
+#!/bin/bash
+# backup.sh
+
+DATE=$(date +%Y%m%d_%H%M%S)
+BACKUP_DIR="/backups"
+
+# Database backup
+docker-compose exec -T db pg_dump -U synergyos_user synergyos > \
+  "$BACKUP_DIR/db_backup_$DATE.sql"
+
+# Media files backup
+tar -czf "$BACKUP_DIR/media_backup_$DATE.tar.gz" media/
+
+# Keep only last 7 days
+find $BACKUP_DIR -name "*.sql" -mtime +7 -delete
+find $BACKUP_DIR -name "*.tar.gz" -mtime +7 -delete
+
+Cron Schedule:
+0 2 * * * /path/to/backup.sh
+
+
+RECOVERY PROCEDURE:
+
+Database Recovery:
+docker-compose exec -T db psql -U synergyos_user synergyos < backup.sql
+
+Media Files Recovery:
+tar -xzf media_backup_YYYYMMDD_HHMMSS.tar.gz
+
+Application Recovery:
+docker-compose down
+docker-compose pull
+docker-compose up -d
+
+
+TROUBLESHOOTING
+================================================================================
+
+COMMON ISSUES:
+
+Issue: Container won't start
+Solution: Check logs with docker-compose logs <service>
+Check: Port conflicts, volume permissions, environment variables
+
+Issue: Database connection refused
+Solution: Verify db container is healthy
+Check: docker-compose ps
+Wait for health check to pass
+
+Issue: Static files not loading
+Solution: Run collectstatic
+Command: docker-compose exec backend python manage.py collectstatic
+
+Issue: Celery tasks not processing
+Solution: Check celery worker logs
+Restart: docker-compose restart celery_worker
+
+Issue: High memory usage
+Solution: Adjust container limits
+Configure: Docker Compose resource limits
+
+Issue: Slow response times
+Solution: Check database queries, enable caching
+Monitor: docker stats
+
+
+MAINTENANCE PROCEDURES
+================================================================================
+
+REGULAR MAINTENANCE:
+
+Weekly:
+□ Review application logs
+□ Check disk space
+□ Verify backups
+□ Monitor error rates
+
+Monthly:
+□ Update dependencies
+□ Review security events
+□ Performance analysis
+□ Cleanup old data
+
+Quarterly:
+□ Security audit
+□ Load testing
+□ Disaster recovery drill
+□ Documentation update
+
+
+SCALING CONSIDERATIONS
+================================================================================
+
+HORIZONTAL SCALING:
+
+Add Backend Instances:
+docker-compose up -d --scale backend=3
+
+Add Celery Workers:
+docker-compose up -d --scale celery_worker=5
+
+Load Balancer Configuration:
+Update Nginx upstream block:
+upstream backend {
+    least_conn;
+    server backend_1:8000;
+    server backend_2:8000;
+    server backend_3:8000;
+}
+
+
+VERTICAL SCALING:
+
+Increase Container Resources:
+services:
+  backend:
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+
+
+================================================================================
+END OF DEPLOYMENT & OPERATIONS
+================================================================================
