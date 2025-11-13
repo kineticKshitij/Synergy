@@ -109,6 +109,10 @@ build/
 docs/_build/
 site/
 
+# Research Paper (large merged files)
+docs/research-paper/merged-research-paper.txt
+docs/research-paper/COMPLETE_RESEARCH_PAPER.txt
+
 # Jupyter Notebooks
 .ipynb_checkpoints/
 *.ipynb

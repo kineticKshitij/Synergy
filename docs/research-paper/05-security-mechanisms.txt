@@ -1,0 +1,967 @@
+================================================================================
+5. SECURITY MECHANISMS AND IMPLEMENTATION
+================================================================================
+
+This section comprehensively examines the security architecture, threat model,
+and defensive measures implemented in SynergyOS to protect against common
+web application vulnerabilities and attacks.
+
+
+5.1 Threat Model and Security Requirements
+--------------------------------------------------------------------------------
+
+5.1.1 Identified Threats
+..............................................................................
+
+THREAT 1: UNAUTHORIZED ACCESS
+- Attack: Credential stuffing, brute force, password guessing
+- Assets at risk: User accounts, project data, confidential information
+- Mitigation: Rate limiting, strong password requirements, JWT expiration
+
+THREAT 2: DATA BREACH
+- Attack: SQL injection, unauthorized API access
+- Assets at risk: Database, user PII, project information
+- Mitigation: ORM parameterization, authentication, authorization
+
+THREAT 3: CROSS-SITE SCRIPTING (XSS)
+- Attack: Injecting malicious scripts into web pages
+- Assets at risk: User sessions, cookies, localStorage
+- Mitigation: Input sanitization, output encoding, CSP headers
+
+THREAT 4: CROSS-SITE REQUEST FORGERY (CSRF)
+- Attack: Forcing authenticated users to perform unwanted actions
+- Assets at risk: Account modifications, data manipulation
+- Mitigation: CSRF tokens, SameSite cookies, origin verification
+
+THREAT 5: MAN-IN-THE-MIDDLE (MITM)
+- Attack: Intercepting network traffic
+- Assets at risk: Credentials, JWT tokens, sensitive data
+- Mitigation: HTTPS/TLS encryption, secure cookies
+
+THREAT 6: DENIAL OF SERVICE (DoS)
+- Attack: Overwhelming server resources
+- Assets at risk: Service availability, server resources
+- Mitigation: Rate limiting, resource quotas, pagination
+
+THREAT 7: SESSION HIJACKING
+- Attack: Stealing or predicting session tokens
+- Assets at risk: User sessions, authenticated actions
+- Mitigation: JWT with short expiration, httpOnly cookies, secure storage
+
+THREAT 8: WEBHOOK SPOOFING
+- Attack: Sending fake webhook notifications
+- Assets at risk: Webhook receivers, downstream systems
+- Mitigation: HMAC signatures, IP whitelisting (future)
+
+
+5.1.2 Security Requirements
+..............................................................................
+
+AUTHENTICATION REQUIREMENTS:
+✓ Support multiple authentication methods (username/email)
+✓ Strong password enforcement (minimum 8 characters, complexity)
+✓ Secure password storage (bcrypt/PBKDF2 hashing)
+✓ Token-based authentication (JWT)
+✓ Token expiration and rotation
+✓ Logout functionality with token blacklisting
+
+AUTHORIZATION REQUIREMENTS:
+✓ Role-based access control (RBAC)
+✓ Object-level permissions (project owner vs. team member)
+✓ Principle of least privilege
+✓ Audit trail for authorization failures
+
+COMMUNICATION SECURITY:
+✓ HTTPS/TLS for all communications (production)
+✓ Secure cookie attributes (httpOnly, Secure, SameSite)
+✓ HSTS (HTTP Strict Transport Security) headers
+
+INPUT VALIDATION:
+✓ Server-side validation for all inputs
+✓ Type checking and format validation
+✓ Length limits and character restrictions
+✓ SQL injection prevention through ORM
+✓ XSS prevention through sanitization
+
+LOGGING AND MONITORING:
+✓ Security event logging (login attempts, password changes)
+✓ IP address tracking
+✓ Audit trail with timestamps
+✓ Anomaly detection (rate limit violations)
+
+DATA PROTECTION:
+✓ Sensitive data encryption at rest (database encryption)
+✓ Sensitive data encryption in transit (TLS)
+✓ Secure password reset mechanism
+✓ PII protection compliance
+
+
+5.2 Authentication Security
+--------------------------------------------------------------------------------
+
+5.2.1 Password Security
+..............................................................................
+
+PASSWORD HASHING:
+Django uses PBKDF2 algorithm with SHA256 hash by default.
+
+CONFIGURATION (settings.py):
+```python
+PASSWORD_HASHERS = [
+    'django.contrib.auth.hashers.PBKDF2PasswordHasher',
+    'django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher',
+    'django.contrib.auth.hashers.Argon2PasswordHasher',
+    'django.contrib.auth.hashers.BCryptSHA256PasswordHasher',
+]
+```
+
+HASHING PROCESS:
+1. User submits password during registration
+2. Django generates random salt
+3. Password + salt hashed with PBKDF2 (390,000 iterations)
+4. Result: pbkdf2_sha256$390000$salt$hash
+
+VERIFICATION PROCESS:
+1. User submits password during login
+2. System retrieves hashed password from database
+3. Extracts salt from stored hash
+4. Hashes submitted password with same salt
+5. Compares hashes using constant-time comparison
+
+PASSWORD STRENGTH VALIDATION:
+```python
+AUTH_PASSWORD_VALIDATORS = [
+    {
+        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        'OPTIONS': {'min_length': 8}
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+    },
+]
+```
+
+VALIDATORS:
+- UserAttributeSimilarityValidator: Password not too similar to user attributes
+- MinimumLengthValidator: At least 8 characters
+- CommonPasswordValidator: Not in list of common passwords
+- NumericPasswordValidator: Not entirely numeric
+
+
+5.2.2 JWT Security
+..............................................................................
+
+TOKEN STRUCTURE:
+Access Token: 60-minute lifetime
+Refresh Token: 24-hour lifetime
+
+TOKEN CLAIMS:
+{
+  "token_type": "access",
+  "exp": 1699899234,           # Expiration (Unix timestamp)
+  "iat": 1699895634,           # Issued at (Unix timestamp)
+  "jti": "abc123def456",       # JWT ID (prevents replay attacks)
+  "user_id": 42
+}
+
+SECURITY FEATURES:
+
+1. SHORT EXPIRATION:
+   Access tokens expire after 60 minutes, limiting window for stolen tokens.
+
+2. TOKEN ROTATION:
+   When refresh token is used, a new refresh token is issued (old one invalidated).
+
+3. TOKEN BLACKLISTING:
+   On logout, refresh token is added to blacklist table.
+   
+   IMPLEMENTATION:
+   ```python
+   from rest_framework_simplejwt.tokens import RefreshToken
+   
+   def logout_view(request):
+       refresh_token = request.data.get('refresh')
+       token = RefreshToken(refresh_token)
+       token.blacklist()  # Adds to blacklist table
+   ```
+
+4. SIGNATURE VERIFICATION:
+   Every API request validates token signature using SECRET_KEY.
+   
+   PROCESS:
+   - Extract token from Authorization header
+   - Decode header and payload
+   - Recompute signature using SECRET_KEY
+   - Compare signatures using constant-time comparison
+   - Verify expiration timestamp
+
+5. SECURE SECRET KEY:
+   SECRET_KEY stored in environment variable, never in code.
+   
+   GENERATION:
+   ```python
+   from django.core.management.utils import get_random_secret_key
+   secret_key = get_random_secret_key()
+   ```
+
+
+5.2.3 Rate Limiting
+..............................................................................
+
+PURPOSE: Prevent brute force attacks and resource exhaustion.
+
+IMPLEMENTATION: django-ratelimit library
+
+RATE LIMIT CONFIGURATION:
+
+LOGIN ENDPOINT:
+```python
+@ratelimit(key='ip', rate='5/5m', method='POST', block=True)
+def login_view(request):
+    # Login logic
+```
+- Key: IP address
+- Rate: 5 attempts per 5 minutes
+- Block: Return 429 status on exceeded limit
+
+REGISTRATION ENDPOINT:
+```python
+@ratelimit(key='ip', rate='5/1h', method='POST', block=True)
+def register_view(request):
+    # Registration logic
+```
+- Rate: 5 registrations per hour per IP
+- Prevents account creation spam
+
+PASSWORD RESET ENDPOINT:
+```python
+@ratelimit(key='ip', rate='3/1h', method='POST', block=True)
+def password_reset_view(request):
+    # Password reset logic
+```
+- Rate: 3 requests per hour per IP
+- Prevents email flooding
+
+API ENDPOINTS:
+```python
+@ratelimit(key='user', rate='100/1m', method='ALL')
+def api_view(request):
+    # API logic
+```
+- Rate: 100 requests per minute per authenticated user
+- Prevents API abuse
+
+RATE LIMIT TRACKING:
+All rate limit violations logged to SecurityEvent table:
+```python
+SecurityEvent.objects.create(
+    user=request.user if request.user.is_authenticated else None,
+    username=request.user.username if request.user.is_authenticated else 'anonymous',
+    event_type='rate_limit',
+    ip_address=get_client_ip(request),
+    description=f'Rate limit exceeded for {request.path}',
+    metadata={'path': request.path, 'method': request.method}
+)
+```
+
+
+5.3 Authorization and Access Control
+--------------------------------------------------------------------------------
+
+5.3.1 Role-Based Access Control (RBAC)
+..............................................................................
+
+ROLES:
+1. PROJECT OWNER
+   - Full project control (CRUD)
+   - Add/remove team members
+   - Create/update/delete tasks
+   - Configure webhooks
+   - View all project data
+
+2. TEAM MEMBER
+   - View project details
+   - View assigned tasks
+   - Update task status
+   - Add comments
+   - Upload attachments
+   - Cannot delete project or remove members
+
+PERMISSION IMPLEMENTATION:
+```python
+class IsProjectOwner(permissions.BasePermission):
+    """
+    Custom permission:
+    - Read access: Owner or team member
+    - Write access: Owner only
+    """
+    
+    def has_object_permission(self, request, view, obj):
+        # Read permissions (GET, HEAD, OPTIONS)
+        if request.method in permissions.SAFE_METHODS:
+            if hasattr(obj, 'owner'):
+                return (obj.owner == request.user or 
+                       request.user in obj.team_members.all())
+            elif hasattr(obj, 'project'):
+                project = obj.project
+                return (project.owner == request.user or 
+                       request.user in project.team_members.all())
+        
+        # Write permissions (POST, PUT, DELETE)
+        if hasattr(obj, 'owner'):
+            return obj.owner == request.user
+        elif hasattr(obj, 'project'):
+            return obj.project.owner == request.user
+        
+        return False
+```
+
+PERMISSION ENFORCEMENT:
+```python
+class ProjectViewSet(viewsets.ModelViewSet):
+    serializer_class = ProjectSerializer
+    permission_classes = [IsAuthenticated, IsProjectOwner]
+    
+    def get_queryset(self):
+        """Filter to only projects user has access to"""
+        user = self.request.user
+        return Project.objects.filter(
+            models.Q(owner=user) | models.Q(team_members=user)
+        ).distinct()
+```
+
+
+5.3.2 Object-Level Permissions
+..............................................................................
+
+QUERY FILTERING:
+Every ViewSet filters queryset to only objects user can access.
+
+EXAMPLE - TaskViewSet:
+```python
+def get_queryset(self):
+    user = self.request.user
+    return Task.objects.filter(
+        models.Q(project__owner=user) | 
+        models.Q(project__team_members=user)
+    ).distinct()
+```
+
+USER A (Owner of Project 1):
+- Can access all tasks in Project 1
+- Cannot access tasks in Project 2 (owned by User B)
+
+USER B (Team member of Project 1):
+- Can view tasks in Project 1
+- Cannot create/delete tasks in Project 1
+- Cannot access tasks in Project 2
+
+OWNERSHIP VALIDATION:
+```python
+def perform_create(self, serializer):
+    """Validate user is project owner before creating task"""
+    task = serializer.save()
+    
+    if task.project.owner != self.request.user:
+        raise PermissionDenied('Only project owner can create tasks')
+    
+    # Log activity
+    ProjectActivity.objects.create(
+        project=task.project,
+        user=self.request.user,
+        action='task_created',
+        description=f'Created task: {task.title}'
+    )
+```
+
+
+5.4 Input Validation and Sanitization
+--------------------------------------------------------------------------------
+
+5.4.1 SQL Injection Prevention
+..............................................................................
+
+MECHANISM: Django ORM parameterizes all queries automatically.
+
+UNSAFE (Direct SQL):
+```python
+# DON'T DO THIS - Vulnerable to SQL injection
+query = f"SELECT * FROM users WHERE username = '{username}'"
+cursor.execute(query)
+```
+
+SAFE (ORM):
+```python
+# Django ORM automatically parameterizes
+user = User.objects.get(username=username)
+```
+
+GENERATED SQL:
+```sql
+SELECT * FROM auth_user WHERE username = %s;
+-- Parameters: ('john_doe',)
+```
+
+EVEN WITH RAW SQL:
+```python
+# Use parameterized raw queries
+User.objects.raw('SELECT * FROM auth_user WHERE username = %s', [username])
+```
+
+
+5.4.2 Cross-Site Scripting (XSS) Prevention
+..............................................................................
+
+INPUT SANITIZATION:
+Library: bleach 6.2.0
+
+IMPLEMENTATION:
+```python
+import bleach
+
+def sanitize_html_input(text):
+    """
+    Remove potentially dangerous HTML tags and attributes.
+    """
+    allowed_tags = ['p', 'br', 'strong', 'em', 'ul', 'ol', 'li']
+    allowed_attributes = {}
+    
+    cleaned = bleach.clean(
+        text,
+        tags=allowed_tags,
+        attributes=allowed_attributes,
+        strip=True
+    )
+    
+    return cleaned
+```
+
+SERIALIZER VALIDATION:
+```python
+class ProjectSerializer(serializers.ModelSerializer):
+    def validate_description(self, value):
+        """Sanitize project description"""
+        return sanitize_html_input(value)
+```
+
+OUTPUT ENCODING:
+React automatically escapes JSX expressions:
+```typescript
+// Automatically escaped by React
+<div>{project.description}</div>
+
+// Dangerous - bypasses escaping (never use with user input)
+<div dangerouslySetInnerHTML={{__html: project.description}} />
+```
+
+CONTENT SECURITY POLICY (CSP):
+```python
+# settings.py
+SECURE_CONTENT_SECURITY_POLICY = (
+    "default-src 'self'; "
+    "script-src 'self' 'unsafe-inline'; "
+    "style-src 'self' 'unsafe-inline'; "
+    "img-src 'self' data: https:; "
+    "font-src 'self' data:; "
+    "connect-src 'self'; "
+)
+```
+
+
+5.4.3 CSRF Protection
+..............................................................................
+
+MECHANISM: Django's CSRF middleware validates CSRF token on state-changing requests.
+
+CONFIGURATION:
+```python
+# settings.py
+CSRF_COOKIE_HTTPONLY = True
+CSRF_COOKIE_SECURE = not DEBUG  # True in production
+CSRF_COOKIE_SAMESITE = 'Lax'
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:5173',
+    'http://localhost',
+    'https://yourdomain.com'
+]
+```
+
+API CSRF EXEMPTION:
+JWT-based APIs don't use CSRF tokens (token in header instead of cookie).
+
+```python
+from django.views.decorators.csrf import csrf_exempt
+
+@csrf_exempt
+@api_view(['POST'])
+def api_endpoint(request):
+    # JWT authentication used instead of session
+    pass
+```
+
+
+5.5 Communication Security
+--------------------------------------------------------------------------------
+
+5.5.1 HTTPS/TLS Configuration
+..............................................................................
+
+PRODUCTION SETTINGS:
+```python
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+```
+
+NGINX TLS CONFIGURATION:
+```nginx
+server {
+    listen 443 ssl http2;
+    server_name yourdomain.com;
+    
+    ssl_certificate /etc/ssl/certs/cert.pem;
+    ssl_certificate_key /etc/ssl/private/key.pem;
+    
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers 'ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256';
+    ssl_prefer_server_ciphers on;
+    
+    # HSTS header
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+}
+```
+
+
+5.5.2 HTTP Security Headers
+..............................................................................
+
+CONFIGURATION:
+```python
+# settings.py
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = 'DENY'
+SECURE_REFERRER_POLICY = 'same-origin'
+
+# HSTS (production only)
+if not DEBUG:
+    SECURE_HSTS_SECONDS = 31536000  # 1 year
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+```
+
+HEADERS SENT:
+```
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+X-XSS-Protection: 1; mode=block
+Referrer-Policy: same-origin
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+```
+
+
+5.5.3 CORS Configuration
+..............................................................................
+
+CONFIGURATION:
+```python
+# settings.py
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:5173',
+    'http://localhost',
+    'https://yourdomain.com'
+]
+
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
+```
+
+
+5.6 Webhook Security
+--------------------------------------------------------------------------------
+
+5.6.1 HMAC Signature Verification
+..............................................................................
+
+PURPOSE: Verify webhook requests are from SynergyOS, not spoofed.
+
+SIGNATURE GENERATION (Sender - SynergyOS):
+```python
+import hmac
+import hashlib
+
+def generate_signature(payload, secret):
+    signature = hmac.new(
+        secret.encode('utf-8'),
+        payload.encode('utf-8'),
+        hashlib.sha256
+    ).hexdigest()
+    return f"sha256={signature}"
+
+# Include in request headers
+headers = {
+    'X-Webhook-Signature': generate_signature(json_payload, webhook.secret)
+}
+```
+
+SIGNATURE VERIFICATION (Receiver - External Service):
+```python
+def verify_signature(payload, received_signature, secret):
+    expected_signature = generate_signature(payload, secret)
+    
+    # Constant-time comparison to prevent timing attacks
+    return hmac.compare_digest(received_signature, expected_signature)
+
+# Verify incoming webhook
+signature = request.headers.get('X-Webhook-Signature')
+if not verify_signature(request.body, signature, webhook_secret):
+    return Response({'error': 'Invalid signature'}, status=403)
+```
+
+SECURITY CONSIDERATIONS:
+- Use strong, randomly generated secrets (32+ characters)
+- Store secrets securely (environment variables, secret management)
+- Rotate secrets periodically
+- Use constant-time comparison to prevent timing attacks
+
+
+5.6.2 Webhook Delivery Headers
+..............................................................................
+
+HEADERS SENT WITH EACH WEBHOOK:
+```python
+headers = {
+    'Content-Type': 'application/json',
+    'User-Agent': 'SynergyOS-Webhook/1.0',
+    'X-Webhook-Signature': 'sha256=abc123...',
+    'X-Webhook-ID': 'uuid-of-webhook',
+    'X-Event-Type': 'project.created',
+    'X-Delivery-ID': 'uuid-of-delivery',
+    'X-Delivery-Attempt': '1'
+}
+```
+
+RECEIVER VALIDATION:
+1. Verify X-Webhook-Signature matches computed signature
+2. Check X-Event-Type matches expected events
+3. Store X-Delivery-ID to detect duplicate deliveries
+4. Use X-Delivery-Attempt for retry handling
+
+
+5.7 Security Event Logging
+--------------------------------------------------------------------------------
+
+5.7.1 SecurityEvent Model
+..............................................................................
+
+SCHEMA:
+```python
+class SecurityEvent(models.Model):
+    EVENT_CHOICES = [
+        ('login_success', 'Login Success'),
+        ('login_failed', 'Login Failed'),
+        ('logout', 'Logout'),
+        ('password_change', 'Password Change'),
+        ('password_reset_request', 'Password Reset Request'),
+        ('password_reset', 'Password Reset'),
+        ('rate_limit', 'Rate Limit Exceeded'),
+        ('registration', 'User Registration'),
+        ('other', 'Other'),
+    ]
+    
+    user = models.ForeignKey(User, null=True, on_delete=models.SET_NULL)
+    username = models.CharField(max_length=150)
+    event_type = models.CharField(max_length=50, choices=EVENT_CHOICES)
+    ip_address = models.GenericIPAddressField()
+    description = models.TextField()
+    metadata = models.JSONField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+```
+
+
+5.7.2 Event Logging Examples
+..............................................................................
+
+LOGIN SUCCESS:
+```python
+SecurityEvent.objects.create(
+    user=user,
+    username=user.username,
+    event_type='login_success',
+    ip_address=get_client_ip(request),
+    description=f'Successful login for {user.username}',
+    metadata={'user_agent': request.META.get('HTTP_USER_AGENT')}
+)
+```
+
+LOGIN FAILURE:
+```python
+SecurityEvent.objects.create(
+    username=attempted_username,
+    event_type='login_failed',
+    ip_address=get_client_ip(request),
+    description=f'Failed login attempt for {attempted_username}',
+    metadata={'reason': 'invalid_credentials'}
+)
+```
+
+PASSWORD CHANGE:
+```python
+SecurityEvent.objects.create(
+    user=user,
+    username=user.username,
+    event_type='password_change',
+    ip_address=get_client_ip(request),
+    description=f'Password changed for {user.username}'
+)
+```
+
+RATE LIMIT VIOLATION:
+```python
+SecurityEvent.objects.create(
+    user=request.user if request.user.is_authenticated else None,
+    username=request.user.username if request.user.is_authenticated else 'anonymous',
+    event_type='rate_limit',
+    ip_address=get_client_ip(request),
+    description=f'Rate limit exceeded for {request.path}',
+    metadata={'path': request.path, 'method': request.method, 'limit': '5/5m'}
+)
+```
+
+
+5.7.3 Security Dashboard
+..............................................................................
+
+FRONTEND ROUTE: /security
+
+FEATURES:
+- Total security events count
+- Failed login attempts counter
+- Successful logins counter
+- Password changes counter
+- Event log table with filters
+- Color-coded event types
+- Expandable metadata view
+- Date range filtering
+- IP address filtering
+
+IMPLEMENTATION (routes/security.tsx):
+```typescript
+const SecurityDashboard: React.FC = () => {
+  const [events, setEvents] = useState<SecurityEvent[]>([]);
+  const [stats, setStats] = useState({
+    total: 0,
+    failed_logins: 0,
+    successful_logins: 0,
+    password_changes: 0
+  });
+  
+  useEffect(() => {
+    loadSecurityEvents();
+  }, []);
+  
+  const loadSecurityEvents = async () => {
+    const data = await authService.getSecurityEvents();
+    setEvents(data);
+    
+    // Calculate stats
+    setStats({
+      total: data.length,
+      failed_logins: data.filter(e => e.event_type === 'login_failed').length,
+      successful_logins: data.filter(e => e.event_type === 'login_success').length,
+      password_changes: data.filter(e => e.event_type === 'password_change').length
+    });
+  };
+  
+  return (
+    <div>
+      <h1>Security Dashboard</h1>
+      
+      <div className="stats">
+        <div>Total Events: {stats.total}</div>
+        <div>Failed Logins: {stats.failed_logins}</div>
+        <div>Successful Logins: {stats.successful_logins}</div>
+        <div>Password Changes: {stats.password_changes}</div>
+      </div>
+      
+      <table>
+        <thead>
+          <tr>
+            <th>Timestamp</th>
+            <th>Event Type</th>
+            <th>Username</th>
+            <th>IP Address</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          {events.map(event => (
+            <tr key={event.id} className={`event-${event.event_type}`}>
+              <td>{formatDate(event.created_at)}</td>
+              <td>{event.event_type}</td>
+              <td>{event.username}</td>
+              <td>{event.ip_address}</td>
+              <td>{event.description}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+```
+
+
+5.8 Data Protection
+--------------------------------------------------------------------------------
+
+5.8.1 Sensitive Data Handling
+..............................................................................
+
+PASSWORD STORAGE:
+- Never store plain text passwords
+- Use Django's password hashing (PBKDF2)
+- Salt automatically generated per password
+
+JWT TOKENS:
+- Store in localStorage (XSS risk) or httpOnly cookies (CSRF risk)
+- Clear on logout
+- Short expiration times
+
+ENVIRONMENT VARIABLES:
+- SECRET_KEY in .env file
+- Database credentials in .env
+- API keys in .env
+- .env excluded from git
+
+
+5.8.2 File Upload Security
+..............................................................................
+
+VALIDATION (models.py):
+```python
+class TaskAttachment(models.Model):
+    file = models.FileField(upload_to='task_attachments/%Y/%m/%d/')
+    file_size = models.BigIntegerField()
+    
+    def clean(self):
+        # Validate file size (max 50MB)
+        if self.file.size > 52428800:
+            raise ValidationError('File size cannot exceed 50MB')
+        
+        # Validate file extension
+        ext = self.file.name.split('.')[-1].lower()
+        allowed_extensions = ['jpg', 'jpeg', 'png', 'pdf', 'doc', 'docx', 'txt']
+        if ext not in allowed_extensions:
+            raise ValidationError(f'File extension .{ext} not allowed')
+```
+
+SETTINGS:
+```python
+DATA_UPLOAD_MAX_MEMORY_SIZE = 52428800  # 50MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 52428800
+```
+
+
+5.9 Security Testing
+--------------------------------------------------------------------------------
+
+5.9.1 Automated Security Tests
+..............................................................................
+
+DJANGO TEST CASES (accounts/tests.py):
+```python
+class SecurityTestCase(TestCase):
+    def test_rate_limiting(self):
+        """Test that rate limiting blocks excessive requests"""
+        for i in range(6):
+            response = self.client.post('/api/auth/login/', {
+                'username': 'test',
+                'password': 'wrong'
+            })
+        
+        # 6th attempt should be blocked
+        self.assertEqual(response.status_code, 429)
+    
+    def test_sql_injection_prevention(self):
+        """Test that ORM prevents SQL injection"""
+        malicious_input = "admin' OR '1'='1"
+        
+        # Should not authenticate
+        user = authenticate(username=malicious_input, password='anything')
+        self.assertIsNone(user)
+    
+    def test_xss_prevention(self):
+        """Test that XSS is sanitized"""
+        malicious_description = '<script>alert("XSS")</script>'
+        
+        project = Project.objects.create(
+            name='Test Project',
+            description=malicious_description,
+            owner=self.user
+        )
+        
+        serializer = ProjectSerializer(project)
+        # Script tags should be removed
+        self.assertNotIn('<script>', serializer.data['description'])
+```
+
+
+5.10 Summary
+--------------------------------------------------------------------------------
+
+SynergyOS implements comprehensive security measures:
+
+AUTHENTICATION:
+✓ PBKDF2 password hashing with 390,000 iterations
+✓ JWT with 60-minute access token, 24-hour refresh token
+✓ Token rotation and blacklisting on logout
+✓ Rate limiting on authentication endpoints
+
+AUTHORIZATION:
+✓ Role-based access control (Owner vs. Team Member)
+✓ Object-level permissions with query filtering
+✓ Permission checking at ViewSet level
+
+INPUT VALIDATION:
+✓ SQL injection prevention through Django ORM
+✓ XSS prevention through HTML sanitization (bleach)
+✓ CSRF protection with secure cookies
+✓ File upload validation (size, type)
+
+COMMUNICATION:
+✓ HTTPS/TLS in production
+✓ Security headers (HSTS, X-Frame-Options, CSP)
+✓ CORS configuration for allowed origins
+
+LOGGING:
+✓ Comprehensive security event logging
+✓ IP address tracking
+✓ Security dashboard for monitoring
+✓ Metadata storage for forensics
+
+WEBHOOK:
+✓ HMAC-SHA256 signature verification
+✓ Unique delivery IDs for deduplication
+✓ Retry mechanism with exponential backoff
+
+The security architecture follows defense-in-depth principles with multiple
+layers of protection against common web application vulnerabilities.
