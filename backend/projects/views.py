@@ -160,9 +160,16 @@ class TaskViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Only return tasks from projects user has access to"""
         user = self.request.user
-        return Task.objects.filter(
+        queryset = Task.objects.filter(
             models.Q(project__owner=user) | models.Q(project__team_members=user)
         ).distinct()
+        
+        # Filter by project if provided
+        project_id = self.request.query_params.get('project', None)
+        if project_id is not None:
+            queryset = queryset.filter(project_id=project_id)
+        
+        return queryset
     
     def perform_create(self, serializer):
         """Log task creation (owner only)"""

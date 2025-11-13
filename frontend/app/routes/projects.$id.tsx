@@ -31,6 +31,7 @@ interface Project {
 
 interface Task {
     id: number;
+    project?: number | { id: number };  // Add project property to support filtering
     title: string;
     description: string;
     status: string;
@@ -82,7 +83,12 @@ function ProjectDetailsContent() {
     const loadTasks = async () => {
         try {
             const data = await projectService.getTasks({ project: id });
-            setTasks(data);
+            // Filter tasks to only show tasks for THIS project
+            const filteredTasks = data.filter((task: Task) => {
+                const taskProjectId = typeof task.project === 'number' ? task.project : task.project?.id;
+                return taskProjectId === Number(id);
+            });
+            setTasks(filteredTasks);
         } catch (error) {
             console.error('Failed to load tasks:', error);
         }

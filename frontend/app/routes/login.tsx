@@ -31,12 +31,13 @@ export default function Login() {
             // Get user profile to determine redirect
             const userProfile = await authService.getProfile();
             
-            // Redirect based on user role
-            if (userProfile.role === 'member') {
-                navigate('/team-dashboard');
-            } else {
-                // 'manager' or 'admin' go to project manager dashboard
+            // Redirect based on email domain
+            // If email ends with @synergy, go to manager dashboard
+            // Otherwise, go to team member dashboard
+            if (userProfile.email.endsWith('@synergy')) {
                 navigate('/dashboard');
+            } else {
+                navigate('/team-dashboard');
             }
         } catch (err: any) {
             setError(err.response?.data?.detail || 'Invalid username or password');

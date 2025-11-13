@@ -1,0 +1,911 @@
+================================================================================
+3. SYSTEM ARCHITECTURE AND DESIGN
+================================================================================
+
+This section presents the comprehensive architecture of SynergyOS, including
+the overall system design, technology stack, database schema, API design,
+and architectural patterns employed.
+
+
+3.1 System Overview
+--------------------------------------------------------------------------------
+
+SynergyOS is designed as a multi-tier web application with clear separation
+between presentation, business logic, data access, caching, and asynchronous
+processing layers.
+
+ARCHITECTURAL LAYERS:
+
+1. PRESENTATION LAYER (Frontend)
+   - React Router v7 Single-Page Application
+   - Server-Side Rendering (SSR) for initial load
+   - Client-side hydration for interactivity
+   - TypeScript for type safety
+
+2. API LAYER (Backend)
+   - Django REST Framework
+   - RESTful API endpoints
+   - JWT authentication middleware
+   - Rate limiting and security middleware
+
+3. BUSINESS LOGIC LAYER
+   - Django models and business rules
+   - Custom permission classes
+   - Signal handlers for event propagation
+   - Serializers for data validation
+
+4. DATA ACCESS LAYER
+   - Django ORM
+   - PostgreSQL database
+   - Database migrations
+   - Query optimization
+
+5. CACHING LAYER
+   - Redis cache
+   - Session storage
+   - Query result caching
+   - API response caching
+
+6. MESSAGE QUEUE LAYER
+   - Redis as message broker
+   - Celery for task distribution
+   - Worker processes for task execution
+   - Celery Beat for scheduled tasks
+
+7. PROXY AND LOAD BALANCING
+   - Nginx reverse proxy
+   - Static file serving
+   - SSL/TLS termination
+   - Request routing
+
+
+3.2 Technology Stack
+--------------------------------------------------------------------------------
+
+3.2.1 Frontend Technologies
+..............................................................................
+
+FRAMEWORK: React Router v7.9.2
+- Modern routing with nested layouts
+- Server-Side Rendering (SSR)
+- File-based routing convention
+- Built-in data loading patterns
+- TypeScript support
+
+STATE MANAGEMENT:
+- React Context API for global state (AuthContext)
+- Component-level state with hooks (useState, useEffect)
+- Form state with react-hook-form
+
+UI COMPONENTS:
+- Tailwind CSS v4.1.13 for styling
+- Lucide React v0.546.0 for icons
+- Custom components (Navbar, TaskModal, ProtectedRoute)
+
+FORM HANDLING:
+- react-hook-form v7.65.0 for form management
+- @hookform/resolvers v5.2.2 for validation
+- Zod v4.1.12 for schema validation
+
+HTTP CLIENT:
+- Axios v1.12.2 for API requests
+- jwt-decode v4.0.0 for token parsing
+- Interceptors for authentication headers
+
+BUILD TOOL:
+- Vite v7.1.7 for fast development builds
+- Hot Module Replacement (HMR)
+- Optimized production builds
+
+
+3.2.2 Backend Technologies
+..............................................................................
+
+FRAMEWORK: Django 5.2.7
+- MTV (Model-Template-View) architecture
+- Admin interface for data management
+- ORM for database abstraction
+- Middleware pipeline for request processing
+
+API FRAMEWORK: Django REST Framework 3.15.2
+- Serializers for data validation and transformation
+- ViewSets for CRUD operations
+- Permissions for access control
+- Pagination and filtering
+
+AUTHENTICATION:
+- djangorestframework-simplejwt 5.4.0
+- JWT token generation and validation
+- Token blacklisting on logout
+- Token refresh mechanism
+
+SECURITY:
+- django-cors-headers 4.7.0 for CORS
+- django-ratelimit 4.1.0 for rate limiting
+- bleach 6.2.0 for HTML sanitization
+- python-decouple 3.8 for configuration
+
+IMAGE PROCESSING:
+- Pillow 11.1.0 for image handling
+- File upload validation
+- Thumbnail generation
+
+AI INTEGRATION:
+- google-generativeai 0.8.3 for AI features
+- Future: Natural language task creation
+- Future: Sentiment analysis
+
+
+3.2.3 Data Storage Technologies
+..............................................................................
+
+DATABASE: PostgreSQL 16-alpine
+- ACID compliance
+- JSON field support
+- Full-text search capabilities
+- Connection pooling
+
+CACHE & MESSAGE BROKER: Redis 7-alpine
+- In-memory data store
+- Pub/sub messaging
+- Persistent storage with AOF (Append-Only File)
+- Sub-millisecond latency
+
+CACHE BACKEND: django-redis 5.4.0
+- Redis cache backend for Django
+- Session storage in Redis
+- Connection pooling
+
+
+3.2.4 Asynchronous Processing
+..............................................................................
+
+TASK QUEUE: Celery 5.3.4
+- Distributed task processing
+- Task scheduling with Celery Beat
+- Retry mechanism with exponential backoff
+- Task result storage
+
+MESSAGE BROKER: Redis
+- Lightweight broker for Celery
+- Lower overhead than RabbitMQ
+- Sufficient for most use cases
+
+TASK TYPES:
+- Webhook delivery
+- Email notifications
+- Background data processing
+- Scheduled cleanup tasks
+
+
+3.2.5 Deployment and Infrastructure
+..............................................................................
+
+CONTAINERIZATION: Docker
+- Multi-stage builds for optimized images
+- Separate containers per service
+- Health checks for service monitoring
+
+ORCHESTRATION: Docker Compose
+- 7 services: db, redis, backend, celery_worker, celery_beat, frontend, nginx
+- Network isolation
+- Volume management for persistence
+- Environment variable configuration
+
+REVERSE PROXY: Nginx Alpine
+- Request routing to backend/frontend
+- Static file serving
+- SSL/TLS termination (production)
+- Security headers
+
+APPLICATION SERVER: Gunicorn
+- WSGI HTTP server for Django
+- 4 worker processes
+- Graceful worker restarts
+- Production-ready
+
+
+3.3 System Architecture Diagram
+--------------------------------------------------------------------------------
+
+                            ┌─────────────────┐
+                            │   CLIENT        │
+                            │   (Browser)     │
+                            └────────┬────────┘
+                                     │
+                                     │ HTTP/HTTPS
+                                     │
+                            ┌────────▼────────┐
+                            │  NGINX (Port 80)│
+                            │  Reverse Proxy  │
+                            └────┬──────┬─────┘
+                                 │      │
+                    ┌────────────┘      └─────────────┐
+                    │                                  │
+         ┌──────────▼──────────┐           ┌─────────▼──────────┐
+         │   REACT FRONTEND    │           │  DJANGO BACKEND    │
+         │   (React Router v7) │           │  (DRF + Gunicorn)  │
+         │   Port 3000         │           │  Port 8000         │
+         └─────────────────────┘           └──────┬──────┬──────┘
+                                                   │      │
+                                    ┌──────────────┘      └──────────────┐
+                                    │                                     │
+                          ┌─────────▼──────────┐              ┌─────────▼─────────┐
+                          │  POSTGRESQL 16     │              │   REDIS 7         │
+                          │  Database          │              │   Cache + Broker  │
+                          │  Port 5432         │              │   Port 6379       │
+                          └────────────────────┘              └──────┬───────┬────┘
+                                                                     │       │
+                                                       ┌─────────────┘       └─────────────┐
+                                                       │                                    │
+                                            ┌──────────▼──────────┐           ┌────────────▼──────────┐
+                                            │  CELERY WORKER      │           │  CELERY BEAT          │
+                                            │  Async Tasks        │           │  Scheduled Tasks      │
+                                            └─────────────────────┘           └───────────────────────┘
+
+EXTERNAL INTEGRATIONS:
+┌──────────────────────────────────────────────────────────────┐
+│                     WEBHOOK DELIVERIES                        │
+│  Backend → External Services (GitHub, Slack, Custom URLs)    │
+└──────────────────────────────────────────────────────────────┘
+
+
+3.4 Database Schema Design
+--------------------------------------------------------------------------------
+
+3.4.1 Core Models Overview
+..............................................................................
+
+DATABASE TABLES:
+1. auth_user (Django built-in)
+2. accounts_userprofile
+3. accounts_securityevent
+4. projects_project
+5. projects_task
+6. projects_comment
+7. projects_taskattachment
+8. projects_projectactivity
+9. projects_projectmessage
+10. webhooks_webhook
+11. webhooks_webhookdelivery
+12. webhooks_webhookevent
+
+
+3.4.2 User and Authentication Schema
+..............................................................................
+
+AUTH_USER (Django built-in):
+┌──────────────┬──────────────┬─────────────────────────────┐
+│ Field        │ Type         │ Description                 │
+├──────────────┼──────────────┼─────────────────────────────┤
+│ id           │ INTEGER PK   │ User ID                     │
+│ username     │ VARCHAR(150) │ Unique username             │
+│ email        │ VARCHAR(254) │ Email address               │
+│ password     │ VARCHAR(128) │ Hashed password             │
+│ first_name   │ VARCHAR(150) │ First name                  │
+│ last_name    │ VARCHAR(150) │ Last name                   │
+│ is_active    │ BOOLEAN      │ Account active status       │
+│ is_staff     │ BOOLEAN      │ Staff access                │
+│ is_superuser │ BOOLEAN      │ Superuser privileges        │
+│ date_joined  │ DATETIME     │ Account creation timestamp  │
+│ last_login   │ DATETIME     │ Last login timestamp        │
+└──────────────┴──────────────┴─────────────────────────────┘
+
+ACCOUNTS_USERPROFILE:
+┌──────────────┬──────────────┬─────────────────────────────┐
+│ Field        │ Type         │ Description                 │
+├──────────────┼──────────────┼─────────────────────────────┤
+│ id           │ INTEGER PK   │ Profile ID                  │
+│ user_id      │ INTEGER FK   │ Link to auth_user           │
+│ bio          │ TEXT         │ User biography              │
+│ location     │ VARCHAR(100) │ Location                    │
+│ phone        │ VARCHAR(20)  │ Phone number                │
+│ avatar       │ FILE         │ Profile picture             │
+│ role         │ VARCHAR(50)  │ User role (manager/member)  │
+│ company      │ VARCHAR(200) │ Company name                │
+│ created_at   │ DATETIME     │ Profile creation            │
+│ updated_at   │ DATETIME     │ Last update                 │
+└──────────────┴──────────────┴─────────────────────────────┘
+
+ACCOUNTS_SECURITYEVENT:
+┌──────────────┬──────────────┬─────────────────────────────┐
+│ Field        │ Type         │ Description                 │
+├──────────────┼──────────────┼─────────────────────────────┤
+│ id           │ INTEGER PK   │ Event ID                    │
+│ user_id      │ INTEGER FK   │ User involved (nullable)    │
+│ username     │ VARCHAR(150) │ Username at event time      │
+│ event_type   │ VARCHAR(50)  │ Type of security event      │
+│ ip_address   │ INET         │ Client IP address           │
+│ description  │ TEXT         │ Event description           │
+│ metadata     │ JSONB        │ Additional event data       │
+│ created_at   │ DATETIME     │ Event timestamp (indexed)   │
+└──────────────┴──────────────┴─────────────────────────────┘
+
+EVENT_TYPES:
+- login_success: Successful authentication
+- login_failed: Failed authentication attempt
+- logout: User logout
+- password_change: Password updated
+- password_reset_request: Password reset email sent
+- password_reset: Password reset completed
+- rate_limit: Rate limit exceeded
+- registration: New user registration
+- other: Other security events
+
+
+3.4.3 Project Management Schema
+..............................................................................
+
+PROJECTS_PROJECT:
+┌──────────────┬──────────────┬─────────────────────────────┐
+│ Field        │ Type         │ Description                 │
+├──────────────┼──────────────┼─────────────────────────────┤
+│ id           │ INTEGER PK   │ Project ID                  │
+│ name         │ VARCHAR(200) │ Project name                │
+│ description  │ TEXT         │ Project description         │
+│ status       │ VARCHAR(20)  │ planning/active/completed   │
+│ priority     │ VARCHAR(20)  │ low/medium/high/urgent      │
+│ owner_id     │ INTEGER FK   │ Project owner (User)        │
+│ start_date   │ DATE         │ Project start date          │
+│ end_date     │ DATE         │ Project end date            │
+│ budget       │ DECIMAL      │ Project budget              │
+│ progress     │ INTEGER      │ Progress percentage (0-100) │
+│ created_at   │ DATETIME     │ Creation timestamp          │
+│ updated_at   │ DATETIME     │ Last update timestamp       │
+└──────────────┴──────────────┴─────────────────────────────┘
+
+MANY-TO-MANY: projects_project_team_members
+┌──────────────┬──────────────┬─────────────────────────────┐
+│ project_id   │ INTEGER FK   │ Link to project             │
+│ user_id      │ INTEGER FK   │ Link to user                │
+└──────────────┴──────────────┴─────────────────────────────┘
+
+PROJECTS_TASK:
+┌──────────────────────┬──────────────┬────────────────────────────┐
+│ Field                │ Type         │ Description                │
+├──────────────────────┼──────────────┼────────────────────────────┤
+│ id                   │ INTEGER PK   │ Task ID                    │
+│ project_id           │ INTEGER FK   │ Link to project            │
+│ title                │ VARCHAR(200) │ Task title                 │
+│ description          │ TEXT         │ Task description           │
+│ status               │ VARCHAR(20)  │ todo/in_progress/review/done│
+│ priority             │ VARCHAR(20)  │ low/medium/high/urgent     │
+│ assigned_to_id       │ INTEGER FK   │ Single assignee (User)     │
+│ due_date             │ DATE         │ Task due date              │
+│ estimated_hours      │ DECIMAL      │ Estimated hours            │
+│ actual_hours         │ DECIMAL      │ Actual hours spent         │
+│ impact               │ DECIMAL      │ Progress impact (0-100%)   │
+│ created_at           │ DATETIME     │ Creation timestamp         │
+│ updated_at           │ DATETIME     │ Last update timestamp      │
+│ completed_at         │ DATETIME     │ Completion timestamp       │
+└──────────────────────┴──────────────┴────────────────────────────┘
+
+MANY-TO-MANY: projects_task_assigned_to_multiple
+┌──────────────┬──────────────┬─────────────────────────────┐
+│ task_id      │ INTEGER FK   │ Link to task                │
+│ user_id      │ INTEGER FK   │ Link to user                │
+└──────────────┴──────────────┴─────────────────────────────┘
+
+NOTE: Task model includes signal handler that automatically updates
+project progress based on completed tasks' impact values.
+
+PROJECTS_COMMENT:
+┌──────────────┬──────────────┬─────────────────────────────┐
+│ Field        │ Type         │ Description                 │
+├──────────────┼──────────────┼─────────────────────────────┤
+│ id           │ INTEGER PK   │ Comment ID                  │
+│ task_id      │ INTEGER FK   │ Link to task                │
+│ user_id      │ INTEGER FK   │ Comment author              │
+│ content      │ TEXT         │ Comment text                │
+│ created_at   │ DATETIME     │ Creation timestamp          │
+│ updated_at   │ DATETIME     │ Last edit timestamp         │
+└──────────────┴──────────────┴─────────────────────────────┘
+
+PROJECTS_TASKATTACHMENT:
+┌──────────────────────┬──────────────┬────────────────────────────┐
+│ Field                │ Type         │ Description                │
+├──────────────────────┼──────────────┼────────────────────────────┤
+│ id                   │ INTEGER PK   │ Attachment ID              │
+│ task_id              │ INTEGER FK   │ Link to task               │
+│ user_id              │ INTEGER FK   │ Uploader                   │
+│ file                 │ FILE         │ File upload                │
+│ file_type            │ VARCHAR(20)  │ image/video/document/other │
+│ file_name            │ VARCHAR(255) │ Original filename          │
+│ file_size            │ BIGINT       │ File size in bytes         │
+│ description          │ TEXT         │ Attachment description     │
+│ is_proof_of_completion│ BOOLEAN     │ Proof of task completion   │
+│ created_at           │ DATETIME     │ Upload timestamp           │
+└──────────────────────┴──────────────┴────────────────────────────┘
+
+NOTE: Attachments automatically detect file type from extension
+
+PROJECTS_PROJECTACTIVITY:
+┌──────────────┬──────────────┬─────────────────────────────┐
+│ Field        │ Type         │ Description                 │
+├──────────────┼──────────────┼─────────────────────────────┤
+│ id           │ INTEGER PK   │ Activity ID                 │
+│ project_id   │ INTEGER FK   │ Link to project             │
+│ user_id      │ INTEGER FK   │ User who performed action   │
+│ action       │ VARCHAR(100) │ Action type                 │
+│ description  │ TEXT         │ Activity description        │
+│ metadata     │ JSONB        │ Additional activity data    │
+│ created_at   │ DATETIME     │ Activity timestamp          │
+└──────────────┴──────────────┴─────────────────────────────┘
+
+PROJECTS_PROJECTMESSAGE:
+┌──────────────┬──────────────┬─────────────────────────────┐
+│ Field        │ Type         │ Description                 │
+├──────────────┼──────────────┼─────────────────────────────┤
+│ id           │ INTEGER PK   │ Message ID                  │
+│ project_id   │ INTEGER FK   │ Link to project             │
+│ sender_id    │ INTEGER FK   │ Message sender              │
+│ parent_id    │ INTEGER FK   │ Parent message (threading)  │
+│ message      │ TEXT         │ Message content             │
+│ is_edited    │ BOOLEAN      │ Edit flag                   │
+│ created_at   │ DATETIME     │ Send timestamp              │
+│ updated_at   │ DATETIME     │ Last edit timestamp         │
+└──────────────┴──────────────┴─────────────────────────────┘
+
+MANY-TO-MANY: projects_projectmessage_mentions
+┌──────────────┬──────────────┬─────────────────────────────┐
+│ message_id   │ INTEGER FK   │ Link to message             │
+│ user_id      │ INTEGER FK   │ Mentioned user              │
+└──────────────┴──────────────┴─────────────────────────────┘
+
+MANY-TO-MANY: projects_projectmessage_read_by
+┌──────────────┬──────────────┬─────────────────────────────┐
+│ message_id   │ INTEGER FK   │ Link to message             │
+│ user_id      │ INTEGER FK   │ User who read message       │
+└──────────────┴──────────────┴─────────────────────────────┘
+
+
+3.4.4 Webhook System Schema
+..............................................................................
+
+WEBHOOKS_WEBHOOK:
+┌──────────────────────┬──────────────┬────────────────────────────┐
+│ Field                │ Type         │ Description                │
+├──────────────────────┼──────────────┼────────────────────────────┤
+│ id                   │ UUID PK      │ Webhook UUID               │
+│ user_id              │ INTEGER FK   │ Webhook owner              │
+│ name                 │ VARCHAR(255) │ Friendly name              │
+│ url                  │ VARCHAR(500) │ Callback URL               │
+│ events               │ JSONB        │ List of subscribed events  │
+│ secret               │ VARCHAR(255) │ HMAC signature secret      │
+│ is_active            │ BOOLEAN      │ Active status              │
+│ created_at           │ DATETIME     │ Creation timestamp         │
+│ updated_at           │ DATETIME     │ Last update                │
+│ last_triggered_at    │ DATETIME     │ Last trigger timestamp     │
+│ total_deliveries     │ INTEGER      │ Total delivery attempts    │
+│ successful_deliveries│ INTEGER      │ Successful deliveries      │
+│ failed_deliveries    │ INTEGER      │ Failed deliveries          │
+└──────────────────────┴──────────────┴────────────────────────────┘
+
+INDEXES:
+- (user_id, is_active)
+- (created_at)
+
+WEBHOOKS_WEBHOOKDELIVERY:
+┌──────────────────────┬──────────────┬────────────────────────────┐
+│ Field                │ Type         │ Description                │
+├──────────────────────┼──────────────┼────────────────────────────┤
+│ id                   │ UUID PK      │ Delivery UUID              │
+│ webhook_id           │ UUID FK      │ Link to webhook            │
+│ event_type           │ VARCHAR(50)  │ Event that triggered       │
+│ payload              │ JSONB        │ Event payload              │
+│ status               │ VARCHAR(20)  │ pending/success/failed/retry│
+│ response_status_code │ INTEGER      │ HTTP response code         │
+│ response_body        │ TEXT         │ Response body              │
+│ error_message        │ TEXT         │ Error message if failed    │
+│ created_at           │ DATETIME     │ Creation timestamp         │
+│ delivered_at         │ DATETIME     │ Delivery completion time   │
+│ duration_ms          │ INTEGER      │ Delivery duration (ms)     │
+│ retry_count          │ INTEGER      │ Number of retry attempts   │
+│ next_retry_at        │ DATETIME     │ Next retry timestamp       │
+└──────────────────────┴──────────────┴────────────────────────────┘
+
+INDEXES:
+- (webhook_id, status)
+- (created_at)
+- (event_type)
+
+WEBHOOKS_WEBHOOKEVENT:
+┌──────────────────┬──────────────┬─────────────────────────────┐
+│ Field            │ Type         │ Description                 │
+├──────────────────┼──────────────┼─────────────────────────────┤
+│ id               │ INTEGER PK   │ Event definition ID         │
+│ event_type       │ VARCHAR(50)  │ Event type (unique)         │
+│ display_name     │ VARCHAR(100) │ Human-readable name         │
+│ description      │ TEXT         │ Event description           │
+│ payload_example  │ JSONB        │ Example payload             │
+│ is_active        │ BOOLEAN      │ Event active status         │
+└──────────────────┴──────────────┴─────────────────────────────┘
+
+SUPPORTED EVENT TYPES:
+- project.created
+- project.updated
+- project.deleted
+- task.created
+- task.updated
+- task.deleted
+- task.completed
+- member.invited
+- member.joined
+- message.created
+- activity.created
+- * (all events)
+
+
+3.5 API Design and Endpoints
+--------------------------------------------------------------------------------
+
+3.5.1 RESTful API Structure
+..............................................................................
+
+BASE URL: /api/
+
+API VERSIONING:
+Currently v1 (implicit), future versions: /api/v2/
+
+RESPONSE FORMAT:
+{
+  "data": {},        // Response data
+  "message": "",     // Human-readable message
+  "status": 200      // HTTP status code
+}
+
+ERROR RESPONSE FORMAT:
+{
+  "error": "Error message",
+  "details": {},
+  "status": 400
+}
+
+
+3.5.2 Authentication Endpoints
+..............................................................................
+
+POST /api/auth/register/
+- Register new user account
+- Request: username, email, password, first_name, last_name
+- Response: User object
+- Rate limit: 5 per hour per IP
+
+POST /api/auth/login/
+- Authenticate user and get JWT tokens
+- Request: username/email, password
+- Response: access_token, refresh_token, user
+- Rate limit: 5 per 5 minutes per user
+
+POST /api/auth/logout/
+- Blacklist refresh token
+- Request: refresh_token
+- Response: Success message
+- Requires: Authentication
+
+POST /api/auth/token/refresh/
+- Refresh access token
+- Request: refresh
+- Response: access (new access token)
+
+GET /api/auth/user/
+- Get current user profile
+- Response: User object with profile
+- Requires: Authentication
+
+PUT /api/auth/user/update/
+- Update user profile
+- Request: Profile fields
+- Response: Updated user object
+- Requires: Authentication
+
+POST /api/auth/change-password/
+- Change user password
+- Request: old_password, new_password
+- Response: Success message
+- Requires: Authentication
+- Rate limit: 5 per hour
+
+POST /api/auth/password-reset/
+- Request password reset email
+- Request: email
+- Response: Success message
+- Rate limit: 3 per hour per IP
+
+POST /api/auth/password-reset-confirm/
+- Confirm password reset with token
+- Request: uid, token, new_password
+- Response: Success message
+
+GET /api/auth/security-events/
+- List security events
+- Requires: Authentication
+- Filters: event_type, date_range
+- Response: Paginated security events
+
+
+3.5.3 Project Management Endpoints
+..............................................................................
+
+GET /api/projects/
+- List all projects (owned or member)
+- Query params: status, priority, search
+- Response: Paginated project list
+- Requires: Authentication
+
+POST /api/projects/
+- Create new project
+- Request: name, description, status, priority, start_date, end_date, budget
+- Response: Created project object
+- Requires: Authentication
+
+GET /api/projects/{id}/
+- Get project details
+- Response: Project object with tasks, members, activities
+- Requires: Authentication, Project access
+
+PUT /api/projects/{id}/
+- Update project
+- Request: Project fields
+- Response: Updated project object
+- Requires: Authentication, Owner permission
+
+DELETE /api/projects/{id}/
+- Delete project
+- Response: Success message
+- Requires: Authentication, Owner permission
+
+POST /api/projects/{id}/add_member/
+- Add team member to project
+- Request: user_id
+- Response: Updated project object
+- Requires: Authentication, Owner permission
+
+POST /api/projects/{id}/remove_member/
+- Remove team member from project
+- Request: user_id
+- Response: Updated project object
+- Requires: Authentication, Owner permission
+
+
+3.5.4 Task Management Endpoints
+..............................................................................
+
+GET /api/tasks/
+- List all accessible tasks
+- Query params: project, status, priority, assigned_to
+- Response: Paginated task list
+- Requires: Authentication
+
+POST /api/tasks/
+- Create new task
+- Request: project, title, description, status, priority, assigned_to, 
+           due_date, estimated_hours, impact
+- Response: Created task object
+- Requires: Authentication, Project owner
+
+GET /api/tasks/{id}/
+- Get task details
+- Response: Task object with comments, attachments
+- Requires: Authentication, Project access
+
+PUT /api/tasks/{id}/
+- Update task
+- Request: Task fields
+- Response: Updated task object
+- Requires: Authentication, Project access
+
+DELETE /api/tasks/{id}/
+- Delete task
+- Response: Success message
+- Requires: Authentication, Project owner
+
+POST /api/tasks/{id}/add_comment/
+- Add comment to task
+- Request: content
+- Response: Created comment object
+- Requires: Authentication, Project access
+
+POST /api/tasks/{id}/upload_attachment/
+- Upload file attachment
+- Request: file (multipart/form-data), description, is_proof_of_completion
+- Response: Created attachment object
+- Requires: Authentication, Project access
+
+
+3.5.5 Webhook Endpoints
+..............................................................................
+
+GET /api/webhooks/
+- List user's webhooks
+- Response: Webhook list
+- Requires: Authentication
+
+POST /api/webhooks/
+- Create new webhook
+- Request: name, url, events, secret (optional)
+- Response: Created webhook object
+- Requires: Authentication
+
+GET /api/webhooks/{id}/
+- Get webhook details
+- Response: Webhook object with delivery stats
+- Requires: Authentication, Webhook owner
+
+PUT /api/webhooks/{id}/
+- Update webhook
+- Request: Webhook fields
+- Response: Updated webhook object
+- Requires: Authentication, Webhook owner
+
+DELETE /api/webhooks/{id}/
+- Delete webhook
+- Response: Success message
+- Requires: Authentication, Webhook owner
+
+GET /api/webhooks/{id}/deliveries/
+- List webhook deliveries
+- Query params: status, event_type, date_range
+- Response: Paginated delivery list
+- Requires: Authentication, Webhook owner
+
+POST /api/webhooks/{id}/test/
+- Send test webhook delivery
+- Response: Delivery result
+- Requires: Authentication, Webhook owner
+
+GET /api/webhook-events/
+- List available webhook event types
+- Response: Event type list
+- Requires: Authentication
+
+
+3.6 Architectural Patterns
+--------------------------------------------------------------------------------
+
+3.6.1 Model-View-Serializer Pattern
+..............................................................................
+
+Django REST Framework follows MVC with serializers:
+
+MODEL (models.py):
+- Database table representation
+- Business logic and validation
+- Signal handlers for side effects
+
+SERIALIZER (serializers.py):
+- Data validation and transformation
+- Field-level and object-level validation
+- Nested serialization for relationships
+
+VIEW (views.py):
+- Request handling and routing
+- Permission checking
+- API endpoint logic
+- ViewSets for CRUD operations
+
+
+3.6.2 Repository Pattern
+..............................................................................
+
+Django ORM acts as repository:
+- Abstract database queries
+- Consistent data access interface
+- Query optimization through ORM
+
+
+3.6.3 Middleware Pattern
+..............................................................................
+
+Request/Response processing pipeline:
+1. SecurityMiddleware: Security headers
+2. CorsMiddleware: CORS handling
+3. SessionMiddleware: Session management
+4. CsrfMiddleware: CSRF protection
+5. AuthenticationMiddleware: User authentication
+6. MessageMiddleware: Flash messages
+7. ClickjackingMiddleware: X-Frame-Options
+8. RateLimitMiddleware: Rate limiting
+
+
+3.6.4 Observer Pattern (Django Signals)
+..............................................................................
+
+Event-driven updates:
+- post_save signal: Task completion updates project progress
+- pre_delete signal: Cleanup related data
+- User creation signal: Create UserProfile automatically
+
+
+3.6.5 Factory Pattern
+..............................................................................
+
+ViewSet factories:
+- ModelViewSet: Full CRUD operations
+- ReadOnlyModelViewSet: Read-only endpoints
+- Generic views for customization
+
+
+3.7 Security Architecture
+--------------------------------------------------------------------------------
+
+3.7.1 Defense in Depth
+..............................................................................
+
+LAYER 1: Network Security (Nginx)
+- SSL/TLS encryption
+- Rate limiting at proxy level
+- Request filtering
+
+LAYER 2: Application Security (Django)
+- JWT authentication
+- Permission checking
+- Input validation
+- Output encoding
+
+LAYER 3: Database Security (PostgreSQL)
+- Parameterized queries (ORM)
+- Row-level security (future)
+- Encrypted connections
+
+LAYER 4: Infrastructure Security (Docker)
+- Container isolation
+- Network segregation
+- Volume permissions
+
+
+3.7.2 Authentication Flow
+..............................................................................
+
+1. User submits credentials to /api/auth/login/
+2. Backend validates credentials
+3. Backend generates JWT access token (60 min) and refresh token (24 hr)
+4. Tokens returned to client
+5. Client stores tokens (localStorage/sessionStorage)
+6. Client includes access token in Authorization header for API requests
+7. Backend validates token signature and expiration
+8. Backend checks user permissions
+9. Backend processes request and returns response
+10. When access token expires, client uses refresh token to get new access token
+11. On logout, refresh token is blacklisted
+
+
+3.8 Scalability Considerations
+--------------------------------------------------------------------------------
+
+HORIZONTAL SCALING:
+- Stateless backend (JWT tokens)
+- Multiple Gunicorn workers
+- Multiple Celery workers
+- Load balancing with Nginx
+
+VERTICAL SCALING:
+- Database connection pooling
+- Redis caching reduces database load
+- Query optimization with select_related/prefetch_related
+
+CACHING STRATEGY:
+- Database query results
+- API responses
+- Session data in Redis
+
+ASYNCHRONOUS PROCESSING:
+- Webhook deliveries via Celery
+- Email notifications via Celery
+- Background tasks don't block user requests
+
+
+3.9 Summary
+--------------------------------------------------------------------------------
+
+The SynergyOS architecture demonstrates:
+- Clear separation of concerns across layers
+- Modern technology stack (Django 5, React Router v7, PostgreSQL 16, Redis 7)
+- RESTful API design principles
+- Comprehensive security architecture
+- Scalability through containerization and caching
+- Event-driven processing with webhooks and Celery
+- Well-designed database schema with proper relationships and indexes
+
+The architecture balances complexity with maintainability, providing a robust
+foundation for enterprise project management with room for future enhancements.
