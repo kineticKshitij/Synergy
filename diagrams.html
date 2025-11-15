@@ -375,7 +375,41 @@
     </style>
 </head>
 <body>
-    <div class="container">
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h3>📑 Navigation</h3>
+        </div>
+        <div class="sidebar-nav">
+            <button class="nav-item" onclick="scrollToDiagram('erDiagram')">🗂️ ER Diagram</button>
+            <button class="nav-item" onclick="scrollToDiagram('userFlow')">👤 User Flow</button>
+            <button class="nav-item" onclick="scrollToDiagram('highLevel')">🏛️ High-Level Architecture</button>
+            <button class="nav-item" onclick="scrollToDiagram('lowLevel')">⚙️ Low-Level Design</button>
+            <button class="nav-item" onclick="scrollToDiagram('deploymentArch')">🐳 Deployment</button>
+            <button class="nav-item" onclick="scrollToDiagram('securityArch')">🔒 Security</button>
+            <button class="nav-item" onclick="scrollToDiagram('dataFlow')">🔄 Data Flow</button>
+            <button class="nav-item" onclick="scrollToDiagram('taskLifecycle')">✅ Task Lifecycle</button>
+            <button class="nav-item" onclick="scrollToDiagram('useCaseDiagram')">🎯 Use Cases</button>
+            <button class="nav-item" onclick="scrollToDiagram('apiArchitecture')">🌐 API Architecture</button>
+            <button class="nav-item" onclick="scrollToDiagram('dbSchema')">💾 Database Schema</button>
+            <button class="nav-item" onclick="scrollToDiagram('cacheStrategy')">🔄 Caching Strategy</button>
+            <button class="nav-item" onclick="scrollToDiagram('performance')">📈 Performance Metrics</button>
+            <button class="nav-item" onclick="scrollToDiagram('comparison')">📊 System Comparison</button>
+            <button class="nav-item" onclick="scrollToDiagram('techStack')">🔧 Tech Stack</button>
+            <button class="nav-item" onclick="scrollToDiagram('scalability')">⚡ Scalability</button>
+            <button class="nav-item" onclick="scrollToDiagram('testing')">🔬 Testing Architecture</button>
+            <button class="nav-item" onclick="scrollToDiagram('projectLifecycle')">📅 Project Lifecycle</button>
+            <button class="nav-item" onclick="scrollToDiagram('notifications')">🔔 Notifications</button>
+            <button class="nav-item" onclick="scrollToDiagram('fileUpload')">📁 File Upload</button>
+        </div>
+    </div>
+
+    <!-- Sidebar Toggle Button -->
+    <button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()">✕</button>
+
+    <!-- Main Content -->
+    <div class="container" id="container">
+        <div class="content-wrapper">
         <header>
             <h1>🚀 SynergyOS System Diagrams</h1>
             <p class="subtitle">Complete Architecture & Design Documentation</p>
