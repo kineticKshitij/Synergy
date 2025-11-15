@@ -31,10 +31,10 @@ export default function Login() {
             // Get user profile to determine redirect
             const userProfile = await authService.getProfile();
             
-            // Redirect based on email domain
-            // If email ends with @synergy, go to manager dashboard
+            // Redirect based on user role
+            // If role is manager or admin, go to manager dashboard
             // Otherwise, go to team member dashboard
-            if (userProfile.email.endsWith('@synergy')) {
+            if (userProfile.role === 'manager' || userProfile.role === 'admin') {
                 navigate('/dashboard');
             } else {
                 navigate('/team-dashboard');
