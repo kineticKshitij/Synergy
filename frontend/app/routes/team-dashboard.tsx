@@ -4,7 +4,7 @@ import { useAuth } from '~/contexts/AuthContext';
 import teamMemberService, { type TeamMemberDashboard } from '~/services/team-member.service';
 import { 
     Briefcase, CheckCircle, Clock, MessageSquare, 
-    AlertCircle, TrendingUp, Calendar, FileText, Upload, Eye, X 
+    AlertCircle, TrendingUp, Calendar, FileText, Upload, Eye, X, Download 
 } from 'lucide-react';
 import type { Route } from './+types/team-dashboard';
 
@@ -518,6 +518,8 @@ function UploadModal({ task, onClose, onUpload }: any) {
 }
 
 function ViewProofModal({ task, proofs, onClose }: any) {
+    const [previewFile, setPreviewFile] = useState<any>(null);
+
     const getFileIcon = (fileType: string) => {
         switch (fileType) {
             case 'image': return '🖼️';
@@ -535,6 +537,21 @@ function ViewProofModal({ task, proofs, onClose }: any) {
             hour: '2-digit',
             minute: '2-digit'
         });
+    };
+
+    const isImageFile = (fileName: string) => {
+        const ext = fileName.split('.').pop()?.toLowerCase();
+        return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext || '');
+    };
+
+    const isPdfFile = (fileName: string) => {
+        return fileName.toLowerCase().endsWith('.pdf');
+    };
+
+    const handleQuickView = (proof: any, e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setPreviewFile(proof);
     };
 
     return (
@@ -586,15 +603,27 @@ function ViewProofModal({ task, proofs, onClose }: any) {
                                         </p>
                                     )}
                                 </div>
-                                <a
-                                    href={proof.file}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-1.5 flex-shrink-0"
-                                >
-                                    <Eye className="w-4 h-4" />
-                                    View
-                                </a>
+                                <div className="flex items-center gap-2 flex-shrink-0">
+                                    {(isImageFile(proof.file_name) || isPdfFile(proof.file_name)) && (
+                                        <button
+                                            onClick={(e) => handleQuickView(proof, e)}
+                                            className="px-3 py-1.5 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-1.5"
+                                            title="Quick preview"
+                                        >
+                                            <Eye className="w-4 h-4" />
+                                            Quick View
+                                        </button>
+                                    )}
+                                    <a
+                                        href={proof.file}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-1.5"
+                                    >
+                                        <Download className="w-4 h-4" />
+                                        Open
+                                    </a>
+                                </div>
                             </div>
                         ))}
                     </div>
@@ -609,6 +638,67 @@ function ViewProofModal({ task, proofs, onClose }: any) {
                     </button>
                 </div>
             </div>
+
+            {/* Quick View Modal */}
+            {previewFile && (
+                <div 
+                    className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-[60] p-4"
+                    onClick={() => setPreviewFile(null)}
+                >
+                    <div className="relative max-w-6xl w-full max-h-[90vh] flex flex-col">
+                        <div className="flex items-center justify-between mb-4 px-4">
+                            <h3 className="text-white font-semibold text-lg truncate">
+                                {previewFile.file_name}
+                            </h3>
+                            <button
+                                onClick={() => setPreviewFile(null)}
+                                className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                            >
+                                <X className="w-6 h-6 text-white" />
+                            </button>
+                        </div>
+                        <div 
+                            className="flex-1 flex items-center justify-center overflow-auto"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            {isImageFile(previewFile.file_name) ? (
+                                <img
+                                    src={previewFile.file}
+                                    alt={previewFile.file_name}
+                                    className="max-w-full max-h-full object-contain rounded-lg"
+                                />
+                            ) : isPdfFile(previewFile.file_name) ? (
+                                <iframe
+                                    src={previewFile.file}
+                                    className="w-full h-full min-h-[600px] rounded-lg bg-white"
+                                    title={previewFile.file_name}
+                                />
+                            ) : null}
+                        </div>
+                        <div className="mt-4 flex justify-center gap-3">
+                            <a
+                                href={previewFile.file}
+                                download
+                                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-2 transition-colors"
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                <Download className="w-4 h-4" />
+                                Download
+                            </a>
+                            <a
+                                href={previewFile.file}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg flex items-center gap-2 transition-colors"
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                <Eye className="w-4 h-4" />
+                                Open in New Tab
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
