@@ -14,14 +14,109 @@
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 20px;
+            margin: 0;
+            padding: 0;
             min-height: 100vh;
+            color: #333;
+            display: flex;
+        }
+
+        .sidebar {
+            width: 280px;
+            background: white;
+            height: 100vh;
+            position: fixed;
+            left: 0;
+            top: 0;
+            overflow-y: auto;
+            box-shadow: 4px 0 15px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar.hidden {
+            transform: translateX(-100%);
+        }
+
+        .sidebar-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .sidebar-header h3 {
+            margin: 0;
+            font-size: 1.2em;
+        }
+
+        .sidebar-toggle {
+            position: fixed;
+            left: 290px;
+            top: 20px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            z-index: 999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2em;
+            transition: all 0.3s ease;
+        }
+
+        .sidebar-toggle:hover {
+            transform: scale(1.1);
+        }
+
+        .sidebar-toggle.closed {
+            left: 20px;
+        }
+
+        .sidebar-nav {
+            padding: 10px;
+        }
+
+        .nav-item {
+            width: 100%;
+            text-align: left;
+            padding: 12px 15px;
+            margin: 5px 0;
+            border: none;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.95em;
             color: #333;
         }
 
+        .nav-item:hover {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            transform: translateX(5px);
+        }
+
         .container {
+            flex: 1;
+            margin-left: 280px;
+            padding: 40px;
+            transition: margin-left 0.3s ease;
+        }
+
+        .container.expanded {
+            margin-left: 0;
+        }
+
+        .content-wrapper {
             max-width: 1400px;
-            margin: 0 auto;
             background: rgba(255, 255, 255, 0.95);
             border-radius: 20px;
             padding: 40px;
@@ -47,61 +142,7 @@
             font-size: 1.2em;
         }
 
-        .nav-controls {
-            background: white;
-            padding: 0;
-            border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-            margin-bottom: 30px;
-            overflow: hidden;
-        }
 
-        .nav-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 20px;
-            cursor: pointer;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            user-select: none;
-        }
-
-        .nav-header:hover {
-            background: linear-gradient(135deg, #5568d3 0%, #653a8b 100%);
-        }
-
-        .nav-header h3 {
-            margin: 0;
-            font-size: 1.3em;
-        }
-
-        .nav-toggle {
-            font-size: 1.5em;
-            transition: transform 0.3s ease;
-        }
-
-        .nav-toggle.open {
-            transform: rotate(180deg);
-        }
-
-        .nav-content {
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.4s ease;
-            padding: 0 20px;
-        }
-
-        .nav-content.open {
-            max-height: 1000px;
-            padding: 20px;
-        }
-
-        .nav-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-        }
 
         .btn {
             padding: 12px 24px;
@@ -272,16 +313,29 @@
         }
 
         @media (max-width: 768px) {
+            .sidebar {
+                width: 250px;
+            }
+
+            .sidebar-toggle {
+                left: 260px;
+            }
+
+            .sidebar-toggle.closed {
+                left: 20px;
+            }
+
             .container {
+                margin-left: 0;
+                padding: 20px;
+            }
+
+            .content-wrapper {
                 padding: 20px;
             }
 
             h1 {
                 font-size: 1.8em;
-            }
-
-            .nav-controls {
-                position: relative;
             }
 
             .diagram-grid {
@@ -4088,6 +4142,7 @@
                 </div>
             </div>
         </div>
+        </div>
     </div>
 
     <div class="scroll-top" id="scrollTop" onclick="scrollToTop()">
@@ -4095,12 +4150,20 @@
     </div>
 
     <script>
-        function toggleNav() {
-            const navContent = document.getElementById('navContent');
-            const navToggle = document.getElementById('navToggle');
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const container = document.getElementById('container');
+            const toggle = document.getElementById('sidebarToggle');
             
-            navContent.classList.toggle('open');
-            navToggle.classList.toggle('open');
+            sidebar.classList.toggle('hidden');
+            container.classList.toggle('expanded');
+            toggle.classList.toggle('closed');
+            
+            if (sidebar.classList.contains('hidden')) {
+                toggle.textContent = '☰';
+            } else {
+                toggle.textContent = '✕';
+            }
         }
 
         function scrollToDiagram(id) {
@@ -4108,12 +4171,16 @@
                 behavior: 'smooth',
                 block: 'start'
             });
-            // Auto-collapse menu after selection on mobile
+            // Auto-hide sidebar on mobile after selection
             if (window.innerWidth < 768) {
-                const navContent = document.getElementById('navContent');
-                const navToggle = document.getElementById('navToggle');
-                navContent.classList.remove('open');
-                navToggle.classList.remove('open');
+                const sidebar = document.getElementById('sidebar');
+                const container = document.getElementById('container');
+                const toggle = document.getElementById('sidebarToggle');
+                
+                sidebar.classList.add('hidden');
+                container.classList.add('expanded');
+                toggle.classList.add('closed');
+                toggle.textContent = '☰';
             }
         }
 
@@ -4134,11 +4201,20 @@
             }
         });
 
-        // Auto-open navigation on desktop, closed on mobile
+        // Initialize sidebar state based on screen size
         document.addEventListener('DOMContentLoaded', function() {
-            if (window.innerWidth >= 768) {
-                document.getElementById('navContent').classList.add('open');
-                document.getElementById('navToggle').classList.add('open');
+            const sidebar = document.getElementById('sidebar');
+            const container = document.getElementById('container');
+            const toggle = document.getElementById('sidebarToggle');
+            
+            // Hide sidebar on mobile by default
+            if (window.innerWidth < 768) {
+                sidebar.classList.add('hidden');
+                container.classList.add('expanded');
+                toggle.classList.add('closed');
+                toggle.textContent = '☰';
+            } else {
+                toggle.textContent = '✕';
             }
             
             // Check if there's a hash in URL
