@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router';
 import { useAuth } from '~/contexts/AuthContext';
 import { ProtectedRoute } from '~/components/ProtectedRoute';
 import { Navbar } from '~/components/Navbar';
+import { LoadingScreen } from '~/components/LoadingScreen';
 import authService from '~/services/auth.service';
 import type { DashboardStats } from '~/services/auth.service';
 import {
@@ -33,6 +34,13 @@ function DashboardContent() {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
+        // Check if user has access to this dashboard
+        if (user && user.role !== 'manager' && user.role !== 'admin') {
+            // Redirect team members to their dashboard
+            navigate('/team-dashboard', { replace: true });
+            return;
+        }
+
         const fetchDashboard = async () => {
             try {
                 const data = await authService.getDashboardStats();
@@ -45,7 +53,7 @@ function DashboardContent() {
         };
 
         fetchDashboard();
-    }, []);
+    }, [user, navigate]);
 
     const handleLogout = async () => {
         await logout();
@@ -53,14 +61,7 @@ function DashboardContent() {
     };
 
     if (isLoading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-                <div className="text-center">
-                    <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-                    <p className="text-gray-600 dark:text-gray-400">Loading dashboard...</p>
-                </div>
-            </div>
-        );
+        return <LoadingScreen message="Loading your dashboard" />;
     }
 
     return (
