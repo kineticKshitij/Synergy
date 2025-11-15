@@ -101,9 +101,9 @@ function ProjectsContent() {
             {/* Header */}
             <div className="border-b border-gray-800 pt-20">
                 <div className="max-w-7xl mx-auto px-6 py-6">
-                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 animate-slideInDown">
                         <div>
-                            <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                            <h1 className="text-3xl md:text-4xl font-bold gradient-text">
                                 Projects
                             </h1>
                             <p className="text-gray-400 mt-2">Manage your projects and track progress</p>
@@ -133,7 +133,7 @@ function ProjectsContent() {
 
                             <Link
                                 to="/projects/new"
-                                className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 rounded-lg font-semibold transition-all flex items-center gap-2 shadow-lg hover:shadow-xl transform hover:scale-105"
+                                className="btn-primary flex items-center gap-2"
                             >
                                 <Plus className="w-5 h-5" />
                                 New Project
@@ -234,7 +234,20 @@ function ProjectsContent() {
             {/* Projects Grid */}
             <div className="max-w-7xl mx-auto px-6 pb-12">
                 {loading ? (
-                    <LoadingSpinner size="lg" message="Loading projects..." />
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {[1, 2, 3, 4, 5, 6].map((i) => (
+                            <div key={i} className="card animate-pulse">
+                                <div className="skeleton-loader h-6 w-3/4 mb-4"></div>
+                                <div className="skeleton-loader h-4 w-full mb-2"></div>
+                                <div className="skeleton-loader h-4 w-2/3 mb-4"></div>
+                                <div className="skeleton-loader h-2 w-full mb-4 rounded-full"></div>
+                                <div className="flex gap-4">
+                                    <div className="skeleton-loader h-4 w-16"></div>
+                                    <div className="skeleton-loader h-4 w-16"></div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 ) : filteredProjects.length === 0 ? (
                     <EmptyState
                         icon={projects.length === 0 ? "📁" : "🔍"}
@@ -260,12 +273,13 @@ function ProjectsContent() {
                                 ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
                                 : "space-y-4"
                         }>
-                            {filteredProjects.map((project) => (
+                            {filteredProjects.map((project, index) => (
                                 viewMode === 'grid' ? (
                                     <Link
                                         key={project.id}
                                         to={`/projects/${project.id}`}
-                                        className="block bg-gray-800/50 border border-gray-700 rounded-xl p-6 hover:border-blue-500/50 hover:bg-gray-800 transition-all group card-hover"
+                                        className="block bg-gray-800/50 border border-gray-700 rounded-xl p-6 hover:border-blue-500/50 hover:bg-gray-800 transition-all group card-hover-enhanced animate-slideInUp"
+                                        style={{ animationDelay: `${index * 0.05}s` }}
                                     >
                                         {/* Header */}
                                         <div className="flex items-start justify-between mb-4">
@@ -335,7 +349,8 @@ function ProjectsContent() {
                                     <Link
                                         key={project.id}
                                         to={`/projects/${project.id}`}
-                                        className="block bg-gray-800/50 border border-gray-700 rounded-xl p-6 hover:border-blue-500/50 hover:bg-gray-800 transition-all group"
+                                        className="block bg-gray-800/50 border border-gray-700 rounded-xl p-6 hover:border-blue-500/50 hover:bg-gray-800 transition-all group card-hover-enhanced animate-slideInUp"
+                                        style={{ animationDelay: `${index * 0.05}s` }}
                                     >
                                         <div className="flex items-center gap-6">
                                             {/* Project Info */}

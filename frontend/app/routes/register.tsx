@@ -149,8 +149,7 @@ export default function Register() {
                   name="username"
                   value={formData.username}
                   onChange={handleChange}
-                  className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors ${errors.username ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                    }`}
+                  className={`input-enhanced w-full pl-10 pr-4 ${errors.username ? 'border-red-500 focus:ring-red-500' : ''}`}
                   placeholder="Choose a username"
                   disabled={isLoading}
                 />
@@ -172,8 +171,7 @@ export default function Register() {
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
-                  className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors ${errors.email ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                    }`}
+                  className={`input-enhanced w-full pl-10 pr-4 ${errors.email ? 'border-red-500 focus:ring-red-500' : ''}`}
                   placeholder="your.email@example.com"
                   disabled={isLoading}
                 />
@@ -194,8 +192,7 @@ export default function Register() {
                   name="first_name"
                   value={formData.first_name}
                   onChange={handleChange}
-                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors ${errors.first_name ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                    }`}
+                  className={`input-enhanced w-full ${errors.first_name ? 'border-red-500 focus:ring-red-500' : ''}`}
                   placeholder="First name"
                   disabled={isLoading}
                 />
@@ -212,8 +209,7 @@ export default function Register() {
                   name="last_name"
                   value={formData.last_name}
                   onChange={handleChange}
-                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors ${errors.last_name ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                    }`}
+                  className={`input-enhanced w-full ${errors.last_name ? 'border-red-500 focus:ring-red-500' : ''}`}
                   placeholder="Last name"
                   disabled={isLoading}
                 />
@@ -235,8 +231,7 @@ export default function Register() {
                   name="password"
                   value={formData.password}
                   onChange={handleChange}
-                  className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors ${errors.password ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                    }`}
+                  className={`input-enhanced w-full pl-10 pr-4 ${errors.password ? 'border-red-500 focus:ring-red-500' : ''}`}
                   placeholder="Create a strong password"
                   disabled={isLoading}
                 />
@@ -273,8 +268,7 @@ export default function Register() {
                   name="password2"
                   value={formData.password2}
                   onChange={handleChange}
-                  className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors ${errors.password2 ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                    }`}
+                  className={`input-enhanced w-full pl-10 pr-4 ${errors.password2 ? 'border-red-500 focus:ring-red-500' : ''}`}
                   placeholder="Confirm your password"
                   disabled={isLoading}
                 />
@@ -312,7 +306,7 @@ export default function Register() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="btn-primary w-full"
             >
               {isLoading ? (
                 <>

@@ -3,7 +3,8 @@
  * Provides AI-powered features including task suggestions, risk analysis, and insights
  */
 
-const API_URL = 'http://localhost/api';
+// Use relative URL to go through nginx proxy
+const API_URL = '/api';
 
 export interface AITaskSuggestion {
     title: string;

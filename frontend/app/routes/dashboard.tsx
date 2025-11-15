@@ -64,47 +64,55 @@ function DashboardContent() {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 page-transition">
             <Navbar />
 
             {/* Main Content */}
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pt-24">
                 {/* Welcome Section */}
-                <div className="mb-8">
-                    <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-                        Welcome back, {user?.username || 'User'}!
+                <div className="mb-8 animate-slideInDown">
+                    <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-2 gradient-text">
+                        Welcome back, {user?.username || 'User'}! 👋
                     </h2>
-                    <p className="text-gray-600 dark:text-gray-400">
+                    <p className="text-gray-600 dark:text-gray-400 text-lg">
                         Here's what's happening with your business today.
                     </p>
                 </div>
 
                 {/* Stats Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                    <StatCard
-                        title="Total Projects"
-                        value={stats?.stats.total_projects || 0}
-                        icon={<FolderKanban className="w-6 h-6" />}
-                        color="blue"
-                    />
-                    <StatCard
-                        title="Active Tasks"
-                        value={stats?.stats.active_tasks || 0}
-                        icon={<CheckSquare className="w-6 h-6" />}
-                        color="green"
-                    />
-                    <StatCard
-                        title="Team Members"
-                        value={stats?.stats.team_members || 0}
-                        icon={<Users className="w-6 h-6" />}
-                        color="purple"
-                    />
-                    <StatCard
-                        title="Pending Approvals"
-                        value={stats?.stats.pending_approvals || 0}
-                        icon={<AlertCircle className="w-6 h-6" />}
-                        color="orange"
-                    />
+                    <div className="animate-slideInUp" style={{ animationDelay: '0.1s' }}>
+                        <StatCard
+                            title="Total Projects"
+                            value={stats?.stats.total_projects || 0}
+                            icon={<FolderKanban className="w-6 h-6" />}
+                            color="blue"
+                        />
+                    </div>
+                    <div className="animate-slideInUp" style={{ animationDelay: '0.2s' }}>
+                        <StatCard
+                            title="Active Tasks"
+                            value={stats?.stats.active_tasks || 0}
+                            icon={<CheckSquare className="w-6 h-6" />}
+                            color="green"
+                        />
+                    </div>
+                    <div className="animate-slideInUp" style={{ animationDelay: '0.3s' }}>
+                        <StatCard
+                            title="Team Members"
+                            value={stats?.stats.team_members || 0}
+                            icon={<Users className="w-6 h-6" />}
+                            color="purple"
+                        />
+                    </div>
+                    <div className="animate-slideInUp" style={{ animationDelay: '0.4s' }}>
+                        <StatCard
+                            title="Pending Approvals"
+                            value={stats?.stats.pending_approvals || 0}
+                            icon={<AlertCircle className="w-6 h-6" />}
+                            color="orange"
+                        />
+                    </div>
                 </div>
 
                 {/* AI Insights & Security */}
@@ -304,14 +312,14 @@ function StatCard({
     };
 
     return (
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-700">
+        <div className="card-hover-enhanced group">
             <div className="flex items-center gap-4">
-                <div className={`p-3 rounded-lg ${colorClasses[color as keyof typeof colorClasses]}`}>
+                <div className={`p-3 rounded-lg transition-transform group-hover:scale-110 ${colorClasses[color as keyof typeof colorClasses]}`}>
                     {icon}
                 </div>
-                <div>
+                <div className="flex-1">
                     <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">{title}</p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{value}</p>
+                    <p className="text-3xl font-bold text-gray-900 dark:text-white transition-colors group-hover:text-blue-400">{value}</p>
                 </div>
             </div>
         </div>
@@ -323,9 +331,9 @@ function QuickActionButton({ label, icon, onClick }: { label: string; icon: Reac
     return (
         <button
             onClick={onClick}
-            className="flex flex-col items-center gap-2 p-4 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition-colors"
+            className="flex flex-col items-center gap-2 p-4 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition-all transform hover:scale-105 hover:shadow-lg group focus-ring"
         >
-            <div className="text-gray-600 dark:text-gray-400">{icon}</div>
+            <div className="text-gray-600 dark:text-gray-400 transition-transform group-hover:scale-110 group-hover:text-blue-500">{icon}</div>
             <span className="text-sm font-medium text-gray-900 dark:text-white">{label}</span>
         </button>
     );

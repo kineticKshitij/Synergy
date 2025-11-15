@@ -45,17 +45,23 @@ export function Modal({ isOpen, onClose, title, children, size = 'md', showClose
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+        <div 
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn"
+            onClick={(e) => {
+                if (e.target === e.currentTarget) onClose();
+            }}
+        >
             <div
-                className={`bg-gray-800 border border-gray-700 rounded-xl shadow-2xl ${sizes[size]} w-full max-h-[90vh] overflow-hidden animate-scaleIn`}
+                className={`bg-gray-800 border border-gray-700 rounded-xl shadow-2xl ${sizes[size]} w-full max-h-[90vh] overflow-hidden animate-scaleIn glass-effect`}
             >
                 {/* Header */}
-                <div className="flex items-center justify-between p-6 border-b border-gray-700 bg-gray-800/50">
-                    <h2 className="text-2xl font-bold text-white">{title}</h2>
+                <div className="flex items-center justify-between p-6 border-b border-gray-700 bg-gradient-to-r from-gray-800/50 to-gray-800/30">
+                    <h2 className="text-2xl font-bold text-white gradient-text">{title}</h2>
                     {showCloseButton && (
                         <button
                             onClick={onClose}
-                            className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-all"
+                            className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-all focus-ring"
+                            aria-label="Close modal"
                         >
                             <X className="w-5 h-5" />
                         </button>
@@ -63,7 +69,7 @@ export function Modal({ isOpen, onClose, title, children, size = 'md', showClose
                 </div>
 
                 {/* Content */}
-                <div className="overflow-y-auto max-h-[calc(90vh-80px)]">
+                <div className="overflow-y-auto max-h-[calc(90vh-80px)] p-6">
                     {children}
                 </div>
             </div>

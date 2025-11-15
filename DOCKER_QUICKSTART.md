@@ -1,151 +1,120 @@
-# 🎯 Docker Deployment - Quick Reference
+# 🚀 Quick Start - Docker Deployment
 
-## ✅ Setup Complete!
+## Prerequisites
+- Docker Desktop (Windows/Mac) or Docker Engine (Linux)
+- Docker Compose v2.0+
+- At least 4GB RAM and 10GB disk space
 
-All Docker configuration files have been created and are ready for deployment.
+## One-Command Deployment
 
-## 📁 Created Files
-
-```
-Synergy/
-├── docker-compose.yml          # Main orchestration file
-├── .env.example               # Environment template
-├── .env                       # Your environment config
-├── .dockerignore             # Root ignore file
-├── DOCKER_DEPLOYMENT.md      # Complete deployment guide
-├── backend/
-│   ├── Dockerfile            # Django container
-│   └── .dockerignore        # Backend ignore file
-├── frontend/
-│   ├── Dockerfile           # React container
-│   └── .dockerignore       # Frontend ignore file
-└── nginx/
-    ├── nginx.conf          # Main nginx config
-    └── conf.d/
-        └── default.conf    # Site configuration
-```
-
-## 🚀 Quick Start Commands
-
-### 1. Build and Start (First Time)
+### Windows (PowerShell)
 ```powershell
-docker-compose up --build -d
+.\docker-deploy.ps1
 ```
 
-### 2. Create Django Superuser
-```powershell
-docker-compose exec backend python manage.py createsuperuser
+### Linux/Mac (Bash)
+```bash
+chmod +x docker-deploy.sh
+./docker-deploy.sh
 ```
 
-### 3. Access Your Application
+### Manual Deployment
+```bash
+# 1. Create .env file (if not exists)
+cp .env.example .env
+
+# 2. Edit .env and update:
+#    - SECRET_KEY (generate a secure key)
+#    - DB_PASSWORD (set a strong password)
+
+# 3. Build and start
+docker compose up -d --build
+
+# 4. Create superuser
+docker compose exec backend python manage.py createsuperuser
+```
+
+## Access the Application
+
 - **Frontend**: http://localhost
 - **Backend API**: http://localhost/api
 - **Django Admin**: http://localhost/admin
 
-### 4. View Logs
-```powershell
-docker-compose logs -f
-```
+## Common Commands
 
-### 5. Stop Services
-```powershell
-docker-compose down
-```
-
-## 🔧 Common Commands
-
-```powershell
-# Start services
-docker-compose up -d
+```bash
+# View logs
+docker compose logs -f
 
 # Stop services
-docker-compose stop
+docker compose down
 
 # Restart services
-docker-compose restart
+docker compose restart
 
-# View status
-docker-compose ps
-
-# Execute Django commands
-docker-compose exec backend python manage.py <command>
+# View service status
+docker compose ps
 
 # Access backend shell
-docker-compose exec backend sh
+docker compose exec backend python manage.py shell
 
-# View backend logs
-docker-compose logs -f backend
+# Run migrations
+docker compose exec backend python manage.py migrate
+
+# Collect static files
+docker compose exec backend python manage.py collectstatic --noinput
 ```
 
-## ⚠️ Before First Run
+## Troubleshooting
 
-1. **Edit `.env` file** and set:
-   - `SECRET_KEY` - Generate a secure key
-   - `DB_PASSWORD` - Set a strong password
+### Port 80 already in use
+```powershell
+# Windows - Find process using port 80
+netstat -ano | findstr :80
 
-2. **Ensure Docker Desktop is running** (Windows/Mac)
+# Kill the process (replace PID)
+taskkill /PID <PID> /F
+```
 
-3. **Check port 80 is available**:
-   ```powershell
-   netstat -ano | findstr :80
-   ```
+### Services not starting
+```bash
+# Check logs
+docker compose logs -f backend
+docker compose logs -f frontend
 
-## 🐛 Troubleshooting Network Issues
+# Rebuild without cache
+docker compose down -v
+docker compose build --no-cache
+docker compose up -d
+```
 
-If you encounter Docker Hub connection errors:
+### Database connection issues
+```bash
+# Check database is running
+docker compose ps db
 
-1. **Check Internet Connection**
-   ```powershell
-   ping registry-1.docker.io
-   ```
+# Restart database
+docker compose restart db
+```
 
-2. **Configure Docker Proxy** (if behind corporate firewall)
-   - Open Docker Desktop → Settings → Resources → Proxies
-   - Configure your proxy settings
+## Production Deployment
 
-3. **Try Alternative Registry** (if needed)
-   - Edit Dockerfiles to use alternative base images
-   - Or configure Docker to use a mirror
+Before deploying to production:
 
-4. **Restart Docker Desktop**
-   - Right-click Docker Desktop icon → Quit Docker Desktop
-   - Start Docker Desktop again
+1. **Update .env file:**
+   - Set `DEBUG=False`
+   - Generate strong `SECRET_KEY`
+   - Set secure `DB_PASSWORD`
+   - Update `ALLOWED_HOSTS` with your domain
+   - Configure email settings
 
-## 📖 Full Documentation
+2. **Enable HTTPS:**
+   - Add SSL certificates to nginx
+   - Update nginx configuration for HTTPS
 
-See **DOCKER_DEPLOYMENT.md** for comprehensive documentation including:
-- Architecture overview
-- Detailed service descriptions
-- Security best practices
-- Production deployment guide
-- Advanced troubleshooting
-- Monitoring and maintenance
+3. **Security:**
+   - Use Docker secrets for sensitive data
+   - Enable firewall rules
+   - Regular database backups
 
-## 🎉 What's Deployed
-
-- ✅ **PostgreSQL 16** - Production database
-- ✅ **Django Backend** - REST API with 4 Gunicorn workers
-- ✅ **React Frontend** - Optimized production build
-- ✅ **Nginx** - Reverse proxy with security headers
-- ✅ **Auto-migrations** - Database updates on startup
-- ✅ **Health checks** - Automatic service monitoring
-- ✅ **Persistent storage** - Data volumes for database
-
-## 🔒 Security Notes
-
-Current configuration is for **development/testing**. For production:
-
-1. Generate strong `SECRET_KEY` in `.env`
-2. Set `DEBUG=False`
-3. Configure proper `ALLOWED_HOSTS`
-4. Enable HTTPS with SSL certificates
-5. Use environment secrets management
-6. Configure email backend for notifications
-7. Set up regular database backups
-
-## 🆘 Need Help?
-
-1. Check `docker-compose logs -f` for errors
-2. Review **DOCKER_DEPLOYMENT.md** troubleshooting section
-3. Verify `.env` configuration
-4. Ensure all services are running: `docker-compose ps`
+For detailed information, see [DOCKER_DEPLOYMENT.md](./DOCKER_DEPLOYMENT.md)

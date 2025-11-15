@@ -39,18 +39,21 @@ export function Toast({ id, type, message, duration = 5000, onClose }: ToastProp
 
     return (
         <div
-            className={`flex items-center gap-3 px-4 py-3 border rounded-lg shadow-lg transition-all duration-300 ${colors[type]} ${
-                isExiting ? 'opacity-0 translate-x-full' : 'opacity-100 translate-x-0'
-            }`}
+            className={`flex items-center gap-3 px-4 py-3 border rounded-lg shadow-lg transition-all duration-300 backdrop-blur-sm ${colors[type]} ${
+                isExiting ? 'opacity-0 translate-x-full scale-95' : 'opacity-100 translate-x-0 scale-100'
+            } animate-slideInRight`}
         >
-            {icons[type]}
+            <div className="flex-shrink-0">
+                {icons[type]}
+            </div>
             <p className="flex-1 text-sm font-medium text-gray-900 dark:text-white">{message}</p>
             <button
                 onClick={() => {
                     setIsExiting(true);
                     setTimeout(() => onClose(id), 300);
                 }}
-                className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors focus-ring rounded p-1"
+                aria-label="Close notification"
             >
                 <X className="w-4 h-4" />
             </button>
