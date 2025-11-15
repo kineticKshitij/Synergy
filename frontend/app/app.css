@@ -258,7 +258,7 @@ select:focus-visible {
 }
 
 .card-hover-enhanced {
-  @apply card transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/10 hover:-translate-y-1 hover:scale-[1.02] hover:border-blue-500/50;
+  @apply bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/10 hover:-translate-y-1 hover:scale-[1.02] hover:border-blue-500/50;
 }
 
 /* Badge Styles */
@@ -267,19 +267,19 @@ select:focus-visible {
 }
 
 .badge-success {
-  @apply badge bg-green-500/20 text-green-400 border-green-500/30;
+  @apply inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium border bg-green-500/20 text-green-400 border-green-500/30;
 }
 
 .badge-warning {
-  @apply badge bg-yellow-500/20 text-yellow-400 border-yellow-500/30;
+  @apply inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium border bg-yellow-500/20 text-yellow-400 border-yellow-500/30;
 }
 
 .badge-error {
-  @apply badge bg-red-500/20 text-red-400 border-red-500/30;
+  @apply inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium border bg-red-500/20 text-red-400 border-red-500/30;
 }
 
 .badge-info {
-  @apply badge bg-blue-500/20 text-blue-400 border-blue-500/30;
+  @apply inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium border bg-blue-500/20 text-blue-400 border-blue-500/30;
 }
 
 /* Skeleton Loader */
