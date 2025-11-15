@@ -314,7 +314,7 @@ export const projectService = {
     async getTaskAttachments(taskId: number) {
         const token = this.getAuthToken();
 
-        const response = await fetch(`${API_URL}/tasks/${taskId}/attachments/`, {
+        const response = await fetch(`${API_URL}/attachments/by_task/?task_id=${taskId}`, {
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json',
