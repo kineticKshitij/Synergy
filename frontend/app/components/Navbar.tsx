@@ -1,12 +1,15 @@
 import { Link, useLocation } from 'react-router';
 import { useState, useEffect } from 'react';
 import { useAuth } from '~/contexts/AuthContext';
+import { NotificationCenter } from '~/components/NotificationCenter';
+import { Menu, X, User, Settings, LogOut } from 'lucide-react';
 
 export function Navbar() {
     const location = useLocation();
     const { user, logout } = useAuth();
     const [scrolled, setScrolled] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [userMenuOpen, setUserMenuOpen] = useState(false);
 
     useEffect(() => {
         const handleScroll = () => {
@@ -131,51 +134,84 @@ export function Navbar() {
                                 >
                                     Security
                                 </Link>
-                                <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                                        <span className="text-white text-sm font-semibold">
-                                            {user.username.charAt(0).toUpperCase()}
-                                        </span>
-                                    </div>
+
+                                {/* Notification Center */}
+                                <NotificationCenter />
+
+                                {/* User Menu */}
+                                <div className="relative">
                                     <button
-                                        onClick={logout}
-                                        className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-white text-sm font-medium transition-colors"
+                                        onClick={() => setUserMenuOpen(!userMenuOpen)}
+                                        className="flex items-center gap-2 px-3 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-all group"
                                     >
-                                        Logout
+                                        <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                                            <span className="text-white text-sm font-semibold">
+                                                {user.username.charAt(0).toUpperCase()}
+                                            </span>
+                                        </div>
+                                        <span className="text-sm font-medium text-white">
+                                            {user.username}
+                                        </span>
                                     </button>
+
+                                    {/* User Dropdown */}
+                                    {userMenuOpen && (
+                                        <div className="absolute right-0 mt-2 w-56 bg-gray-800 border border-gray-700 rounded-xl shadow-2xl z-50 animate-slideInDown">
+                                            <div className="p-4 border-b border-gray-700">
+                                                <p className="text-sm font-semibold text-white">{user.username}</p>
+                                                <p className="text-xs text-gray-400 truncate">{user.email}</p>
+                                            </div>
+                                            <div className="py-2">
+                                                <Link
+                                                    to="/profile"
+                                                    onClick={() => setUserMenuOpen(false)}
+                                                    className="flex items-center gap-3 px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
+                                                >
+                                                    <User className="w-4 h-4" />
+                                                    Profile
+                                                </Link>
+                                                <Link
+                                                    to="/security"
+                                                    onClick={() => setUserMenuOpen(false)}
+                                                    className="flex items-center gap-3 px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
+                                                >
+                                                    <Settings className="w-4 h-4" />
+                                                    Settings
+                                                </Link>
+                                            </div>
+                                            <div className="border-t border-gray-700 py-2">
+                                                <button
+                                                    onClick={() => {
+                                                        setUserMenuOpen(false);
+                                                        logout();
+                                                    }}
+                                                    className="flex items-center gap-3 px-4 py-2 text-sm text-red-400 hover:bg-gray-700 transition-colors w-full"
+                                                >
+                                                    <LogOut className="w-4 h-4" />
+                                                    Logout
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </>
                         )}
                     </div>
 
                     {/* Mobile Menu Button */}
-                    <button
-                        className="md:hidden text-white p-2"
-                        onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                    >
-                        <svg
-                            className="w-6 h-6"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
+                    <div className="md:hidden flex items-center gap-2">
+                        {user && <NotificationCenter />}
+                        <button
+                            className="text-white p-2 hover:bg-gray-800 rounded-lg transition-colors"
+                            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                         >
                             {mobileMenuOpen ? (
-                                <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M6 18L18 6M6 6l12 12"
-                                />
+                                <X className="w-6 h-6" />
                             ) : (
-                                <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M4 6h16M4 12h16M4 18h16"
-                                />
+                                <Menu className="w-6 h-6" />
                             )}
-                        </svg>
-                    </button>
+                        </button>
+                    </div>
                 </div>
 
                 {/* Mobile Menu */}
