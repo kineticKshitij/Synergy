@@ -48,18 +48,59 @@
         }
 
         .nav-controls {
-            position: sticky;
-            top: 20px;
             background: white;
-            padding: 20px;
+            padding: 0;
             border-radius: 12px;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
             margin-bottom: 30px;
-            z-index: 100;
+            overflow: hidden;
+        }
+
+        .nav-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            cursor: pointer;
             display: flex;
+            justify-content: space-between;
+            align-items: center;
+            user-select: none;
+        }
+
+        .nav-header:hover {
+            background: linear-gradient(135deg, #5568d3 0%, #653a8b 100%);
+        }
+
+        .nav-header h3 {
+            margin: 0;
+            font-size: 1.3em;
+        }
+
+        .nav-toggle {
+            font-size: 1.5em;
+            transition: transform 0.3s ease;
+        }
+
+        .nav-toggle.open {
+            transform: rotate(180deg);
+        }
+
+        .nav-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+            padding: 0 20px;
+        }
+
+        .nav-content.open {
+            max-height: 1000px;
+            padding: 20px;
+        }
+
+        .nav-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 15px;
-            justify-content: center;
-            flex-wrap: wrap;
         }
 
         .btn {
@@ -290,26 +331,34 @@
         </header>
 
         <div class="nav-controls">
-            <button class="btn btn-primary" onclick="scrollToDiagram('erDiagram')">🗂️ ER Diagram</button>
-            <button class="btn btn-success" onclick="scrollToDiagram('userFlow')">👤 User Flow</button>
-            <button class="btn btn-warning" onclick="scrollToDiagram('highLevel')">🏛️ High-Level</button>
-            <button class="btn btn-info" onclick="scrollToDiagram('lowLevel')">⚙️ Low-Level</button>
-            <button class="btn btn-primary" onclick="scrollToDiagram('deploymentArch')">🐳 Deployment</button>
-            <button class="btn btn-success" onclick="scrollToDiagram('securityArch')">🔒 Security</button>
-            <button class="btn btn-warning" onclick="scrollToDiagram('dataFlow')">🔄 Data Flow</button>
-            <button class="btn btn-info" onclick="scrollToDiagram('taskLifecycle')">✅ Task Lifecycle</button>
-            <button class="btn btn-primary" onclick="scrollToDiagram('useCaseDiagram')">🎯 Use Cases</button>
-            <button class="btn btn-success" onclick="scrollToDiagram('apiArchitecture')">🌐 API</button>
-            <button class="btn btn-warning" onclick="scrollToDiagram('dbSchema')">💾 DB Schema</button>
-            <button class="btn btn-info" onclick="scrollToDiagram('cacheStrategy')">🔄 Caching</button>
-            <button class="btn btn-primary" onclick="scrollToDiagram('performance')">📈 Performance</button>
-            <button class="btn btn-success" onclick="scrollToDiagram('comparison')">📊 Comparison</button>
-            <button class="btn btn-warning" onclick="scrollToDiagram('techStack')">🔧 Tech Stack</button>
-            <button class="btn btn-info" onclick="scrollToDiagram('scalability')">⚡ Scalability</button>
-            <button class="btn btn-primary" onclick="scrollToDiagram('testing')">🔬 Testing</button>
-            <button class="btn btn-success" onclick="scrollToDiagram('projectLifecycle')">📅 Project Flow</button>
-            <button class="btn btn-warning" onclick="scrollToDiagram('notifications')">🔔 Notifications</button>
-            <button class="btn btn-info" onclick="scrollToDiagram('fileUpload')">📁 File Upload</button>
+            <div class="nav-header" onclick="toggleNav()">
+                <h3>📑 Table of Contents</h3>
+                <span class="nav-toggle" id="navToggle">▼</span>
+            </div>
+            <div class="nav-content" id="navContent">
+                <div class="nav-grid">
+                    <button class="btn btn-primary" onclick="scrollToDiagram('erDiagram')">🗂️ ER Diagram</button>
+                    <button class="btn btn-success" onclick="scrollToDiagram('userFlow')">👤 User Flow</button>
+                    <button class="btn btn-warning" onclick="scrollToDiagram('highLevel')">🏛️ High-Level</button>
+                    <button class="btn btn-info" onclick="scrollToDiagram('lowLevel')">⚙️ Low-Level</button>
+                    <button class="btn btn-primary" onclick="scrollToDiagram('deploymentArch')">🐳 Deployment</button>
+                    <button class="btn btn-success" onclick="scrollToDiagram('securityArch')">🔒 Security</button>
+                    <button class="btn btn-warning" onclick="scrollToDiagram('dataFlow')">🔄 Data Flow</button>
+                    <button class="btn btn-info" onclick="scrollToDiagram('taskLifecycle')">✅ Task Lifecycle</button>
+                    <button class="btn btn-primary" onclick="scrollToDiagram('useCaseDiagram')">🎯 Use Cases</button>
+                    <button class="btn btn-success" onclick="scrollToDiagram('apiArchitecture')">🌐 API</button>
+                    <button class="btn btn-warning" onclick="scrollToDiagram('dbSchema')">💾 DB Schema</button>
+                    <button class="btn btn-info" onclick="scrollToDiagram('cacheStrategy')">🔄 Caching</button>
+                    <button class="btn btn-primary" onclick="scrollToDiagram('performance')">📈 Performance</button>
+                    <button class="btn btn-success" onclick="scrollToDiagram('comparison')">📊 Comparison</button>
+                    <button class="btn btn-warning" onclick="scrollToDiagram('techStack')">🔧 Tech Stack</button>
+                    <button class="btn btn-info" onclick="scrollToDiagram('scalability')">⚡ Scalability</button>
+                    <button class="btn btn-primary" onclick="scrollToDiagram('testing')">🔬 Testing</button>
+                    <button class="btn btn-success" onclick="scrollToDiagram('projectLifecycle')">📅 Project Flow</button>
+                    <button class="btn btn-warning" onclick="scrollToDiagram('notifications')">🔔 Notifications</button>
+                    <button class="btn btn-info" onclick="scrollToDiagram('fileUpload')">📁 File Upload</button>
+                </div>
+            </div>
         </div>
 
         <!-- ER Diagram Section -->
@@ -4046,11 +4095,26 @@
     </div>
 
     <script>
+        function toggleNav() {
+            const navContent = document.getElementById('navContent');
+            const navToggle = document.getElementById('navToggle');
+            
+            navContent.classList.toggle('open');
+            navToggle.classList.toggle('open');
+        }
+
         function scrollToDiagram(id) {
             document.getElementById(id).scrollIntoView({ 
                 behavior: 'smooth',
                 block: 'start'
             });
+            // Auto-collapse menu after selection on mobile
+            if (window.innerWidth < 768) {
+                const navContent = document.getElementById('navContent');
+                const navToggle = document.getElementById('navToggle');
+                navContent.classList.remove('open');
+                navToggle.classList.remove('open');
+            }
         }
 
         function scrollToTop() {
@@ -4070,8 +4134,13 @@
             }
         });
 
-        // Smooth scroll for navigation
+        // Auto-open navigation on desktop, closed on mobile
         document.addEventListener('DOMContentLoaded', function() {
+            if (window.innerWidth >= 768) {
+                document.getElementById('navContent').classList.add('open');
+                document.getElementById('navToggle').classList.add('open');
+            }
+            
             // Check if there's a hash in URL
             if (window.location.hash) {
                 setTimeout(function() {
