@@ -7,13 +7,17 @@ Thumbs.db
 .env.local
 .env.production
 .env.development
+.env.test
 *.env
+!.env.example
 
 # API Keys and Secrets
 *.ps1
 *_API_KEY*
 secrets/
 credentials/
+.secrets/
+*.secret
 
 # Frontend (Node/React)
 /frontend/node_modules/
@@ -21,11 +25,15 @@ credentials/
 /frontend/build/
 /frontend/dist/
 /frontend/.cache/
+/frontend/.next/
+/frontend/out/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 package-lock.json
 yarn.lock
+pnpm-lock.yaml
+.pnpm-debug.log
 
 # Backend (Python/Django)
 /backend/__pycache__/
@@ -43,6 +51,8 @@ yarn.lock
 /backend/.venv/
 /backend/ENV/
 /backend/SOS/
+/backend/celerybeat-schedule*
+/backend/celerybeat.pid
 *.pyo
 *.pyd
 .pytest_cache/
@@ -50,10 +60,14 @@ yarn.lock
 htmlcov/
 *.cover
 .hypothesis/
+pip-log.txt
+pip-delete-this-directory.txt
 
 # Docker
 docker-compose.override.yml
 .dockerignore
+docker-compose.*.yml
+!docker-compose.yml
 
 # Database
 *.sql
@@ -61,9 +75,15 @@ docker-compose.override.yml
 *.sqlite3
 *.db
 postgres-data/
+mysql-data/
+pgdata/
+*.dump
+*.backup.sql
 
 # IDE & Editors
 .vscode/
+!.vscode/settings.json.example
+!.vscode/extensions.json
 .idea/
 *.swp
 *.swo
@@ -74,6 +94,7 @@ postgres-data/
 *.sublime-project
 *.sublime-workspace
 .vscode-test/
+*.code-workspace
 
 # Logs
 *.log
@@ -83,11 +104,16 @@ yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
 pnpm-debug.log*
+combined.log
+error.log
+access.log
 
 # Test Coverage
 coverage/
 *.lcov
 .nyc_output
+.coverage.*
+!.coveragerc
 
 # Temporary Files
 temp*/
@@ -98,16 +124,29 @@ tmp/
 *.bak
 *.backup
 structure.txt
+*.orig
+*.swn
 
 # Build artifacts
 dist/
 build/
 *.egg-info/
 .eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg
+MANIFEST
 
 # Documentation (generated)
 docs/_build/
 site/
+.docusaurus/
+.cache/
 
 # Research Paper (large merged files)
 docs/research-paper/merged-research-paper.txt
@@ -116,17 +155,26 @@ docs/research-paper/COMPLETE_RESEARCH_PAPER.txt
 # Jupyter Notebooks
 .ipynb_checkpoints/
 *.ipynb
+.jupyter/
 
 # MacOS
 *.DS_Store
 .AppleDouble
 .LSOverride
+._*
+.Spotlight-V100
+.Trashes
 
 # Windows
 Thumbs.db
 ehthumbs.db
 Desktop.ini
 $RECYCLE.BIN/
+*.lnk
+
+# Linux
+*~
+.directory
 
 # AI Generated
 .ai/
@@ -137,6 +185,7 @@ test-results/
 test-output/
 *.xml
 junit.xml
+pytest_cache/
 
 # Security
 *.pem
@@ -145,11 +194,17 @@ junit.xml
 *.crt
 *.p12
 *.pfx
+*.keystore
+id_rsa
+id_dsa
+*.pub
 
 # Local configuration
 local_settings.py
 local.py
 config.local.js
+config.local.json
+settings.local.py
 
 # Compiled source
 *.com
@@ -158,6 +213,7 @@ config.local.js
 *.exe
 *.o
 *.so
+*.dylib
 
 # Archives
 *.7z
@@ -168,6 +224,8 @@ config.local.js
 *.rar
 *.tar
 *.zip
+*.bz2
+*.xz
 
 # Large files (should be in Git LFS if needed)
 *.mp4
@@ -176,12 +234,64 @@ config.local.js
 *.wmv
 *.flv
 *.large
+*.mkv
+*.webm
 
 # Node
 node_modules/
 jspm_packages/
 web_modules/
+bower_components/
+.npm
+.eslintcache
+.node_repl_history
+*.tgz
+.yarn-integrity
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
 
 # TypeScript
 *.tsbuildinfo
 next-env.d.ts
+tsconfig.tsbuildinfo
+
+# Python virtual environments
+venv/
+ENV/
+env.bak/
+venv.bak/
+pythonenv*
+
+# Redis
+dump.rdb
+appendonly.aof
+
+# Nginx
+/nginx/logs/
+
+# SSL Certificates (if not tracked)
+*.csr
+*.der
+*.cer
+
+# Backup files
+*.backup
+*~
+*.swp
+*.swo
+
+# Migration conflicts
+**/migrations/*_conflict_*.py
+
+# OS generated files
+.Spotlight-V100
+.fseventsd
+
+# Project specific
+deployment_summary.md
+DEPLOYMENT_SUMMARY.md
+QUICK_START.md
+structure.txt
