@@ -13,7 +13,9 @@ from .views import (
     InviteTeamMemberView,
     RemoveTeamMemberView,
     MyUserProfileDetailView,
-    TeamMemberListView
+    TeamMemberListView,
+    SendOTPView,
+    VerifyOTPView
 )
 
 urlpatterns = [
@@ -22,6 +24,10 @@ urlpatterns = [
     path('login/', CustomLoginView.as_view(), name='login'),
     path('logout/', LogoutView.as_view(), name='logout'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    
+    # 2FA/OTP
+    path('send-otp/', SendOTPView.as_view(), name='send_otp'),
+    path('verify-otp/', VerifyOTPView.as_view(), name='verify_otp'),
     
     # Password Reset
     path('password-reset/', PasswordResetRequestView.as_view(), name='password_reset'),

@@ -14,9 +14,12 @@ from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 from django_ratelimit.decorators import ratelimit
 from django.utils.decorators import method_decorator
 from django_ratelimit.exceptions import Ratelimited
+from datetime import timedelta
+import random
 from .serializers import (
     RegisterSerializer, UserSerializer, SecurityEventSerializer,
     UserProfileSerializer, TeamMemberInvitationSerializer, UserDetailSerializer
@@ -731,3 +734,263 @@ class TeamMemberListView(generics.ListAPIView):
             team_member_ids.add(project.owner.id)
         
         return User.objects.filter(id__in=team_member_ids).distinct()
+
+
+@method_decorator(ratelimit(key='ip', rate='3/5m', method='POST', block=True), name='dispatch')
+class SendOTPView(APIView):
+    """
+    Send OTP to user's email for 2FA login.
+    Rate limited to 3 requests per 5 minutes per IP.
+    """
+    permission_classes = (AllowAny,)
+    
+    def post(self, request):
+        username = request.data.get('username', '').strip()
+        password = request.data.get('password', '').strip()
+        
+        if not username or not password:
+            return Response(
+                {'error': 'Username and password are required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            # Verify credentials first
+            user = User.objects.get(username=username)
+            
+            if not user.check_password(password):
+                # Log failed login
+                try:
+                    SecurityEvent.objects.create(
+                        event_type='login_failed',
+                        user=None,
+                        username=username,
+                        ip_address=get_client_ip(request),
+                        description='Failed OTP login - invalid password',
+                    )
+                except Exception:
+                    pass
+                
+                return Response(
+                    {'error': 'Invalid credentials'},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+            
+            # Generate 6-digit OTP
+            otp_code = ''.join([str(random.randint(0, 9)) for _ in range(6)])
+            
+            # Get or create user profile
+            try:
+                profile = user.profile
+            except UserProfile.DoesNotExist:
+                profile = UserProfile.objects.create(user=user)
+            
+            # Store OTP in profile
+            profile.otp_code = otp_code
+            profile.otp_created_at = timezone.now()
+            profile.otp_attempts = 0
+            profile.save()
+            
+            # Send OTP via email
+            subject = 'Your SynergyOS Login OTP'
+            message = f"""
+Hello {user.first_name or user.username},
+
+Your one-time password (OTP) for SynergyOS login is:
+
+{otp_code}
+
+This code will expire in 10 minutes.
+
+If you didn't request this, please ignore this email and ensure your account is secure.
+
+Best regards,
+The SynergyOS Team
+            """
+            
+            try:
+                send_mail(
+                    subject,
+                    message,
+                    settings.DEFAULT_FROM_EMAIL,
+                    [user.email],
+                    fail_silently=False,
+                )
+                
+                # Log OTP sent
+                try:
+                    SecurityEvent.objects.create(
+                        event_type='other',
+                        user=user,
+                        username=user.username,
+                        ip_address=get_client_ip(request),
+                        description='OTP sent for 2FA login',
+                    )
+                except Exception:
+                    pass
+                
+                return Response({
+                    'message': 'OTP sent successfully to your email',
+                    'email': user.email
+                }, status=status.HTTP_200_OK)
+                
+            except Exception as e:
+                return Response(
+                    {'error': 'Failed to send OTP email'},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+        
+        except User.DoesNotExist:
+            # Log failed login
+            try:
+                SecurityEvent.objects.create(
+                    event_type='login_failed',
+                    user=None,
+                    username=username,
+                    ip_address=get_client_ip(request),
+                    description='Failed OTP login - user not found',
+                )
+            except Exception:
+                pass
+            
+            return Response(
+                {'error': 'Invalid credentials'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+
+@method_decorator(ratelimit(key='ip', rate='5/5m', method='POST', block=True), name='dispatch')
+class VerifyOTPView(APIView):
+    """
+    Verify OTP and complete 2FA login.
+    Rate limited to 5 requests per 5 minutes per IP.
+    """
+    permission_classes = (AllowAny,)
+    
+    def post(self, request):
+        username = request.data.get('username', '').strip()
+        otp_code = request.data.get('otp', '').strip()
+        
+        if not username or not otp_code:
+            return Response(
+                {'error': 'Username and OTP are required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            user = User.objects.get(username=username)
+            
+            # Get user profile
+            try:
+                profile = user.profile
+            except UserProfile.DoesNotExist:
+                return Response(
+                    {'error': 'Invalid OTP'},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+            
+            # Check if OTP exists
+            if not profile.otp_code or not profile.otp_created_at:
+                return Response(
+                    {'error': 'No OTP found. Please request a new OTP.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Check OTP expiration (10 minutes)
+            otp_age = timezone.now() - profile.otp_created_at
+            if otp_age > timedelta(minutes=10):
+                # Clear expired OTP
+                profile.otp_code = None
+                profile.otp_created_at = None
+                profile.otp_attempts = 0
+                profile.save()
+                
+                return Response(
+                    {'error': 'OTP has expired. Please request a new OTP.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Check attempt limit (max 5 attempts)
+            if profile.otp_attempts >= 5:
+                # Clear OTP after too many failed attempts
+                profile.otp_code = None
+                profile.otp_created_at = None
+                profile.otp_attempts = 0
+                profile.save()
+                
+                # Log security event
+                try:
+                    SecurityEvent.objects.create(
+                        event_type='login_failed',
+                        user=user,
+                        username=user.username,
+                        ip_address=get_client_ip(request),
+                        description='OTP verification failed - too many attempts',
+                    )
+                except Exception:
+                    pass
+                
+                return Response(
+                    {'error': 'Too many failed attempts. Please request a new OTP.'},
+                    status=status.HTTP_429_TOO_MANY_REQUESTS
+                )
+            
+            # Verify OTP
+            if profile.otp_code == otp_code:
+                # Clear OTP
+                profile.otp_code = None
+                profile.otp_created_at = None
+                profile.otp_attempts = 0
+                profile.save()
+                
+                # Generate JWT tokens
+                refresh = RefreshToken.for_user(user)
+                
+                # Log successful login
+                try:
+                    SecurityEvent.objects.create(
+                        event_type='login_success',
+                        user=user,
+                        username=user.username,
+                        ip_address=get_client_ip(request),
+                        description='User logged in successfully with 2FA',
+                    )
+                except Exception:
+                    pass
+                
+                return Response({
+                    'message': 'Login successful',
+                    'user': UserSerializer(user).data,
+                    'tokens': {
+                        'refresh': str(refresh),
+                        'access': str(refresh.access_token),
+                    }
+                }, status=status.HTTP_200_OK)
+            else:
+                # Increment failed attempts
+                profile.otp_attempts += 1
+                profile.save()
+                
+                # Log failed attempt
+                try:
+                    SecurityEvent.objects.create(
+                        event_type='login_failed',
+                        user=user,
+                        username=user.username,
+                        ip_address=get_client_ip(request),
+                        description=f'OTP verification failed - attempt {profile.otp_attempts}/5',
+                    )
+                except Exception:
+                    pass
+                
+                remaining_attempts = 5 - profile.otp_attempts
+                return Response(
+                    {'error': f'Invalid OTP. {remaining_attempts} attempts remaining.'},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+        
+        except User.DoesNotExist:
+            return Response(
+                {'error': 'Invalid credentials'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )

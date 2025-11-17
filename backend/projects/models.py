@@ -68,6 +68,10 @@ class Task(models.Model):
     assigned_to = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_tasks')
     assigned_to_multiple = models.ManyToManyField(User, related_name='multi_assigned_tasks', blank=True, help_text="Multiple team members assigned to this task")
     
+    # Task Dependencies
+    depends_on = models.ManyToManyField('self', symmetrical=False, related_name='blocking_tasks', blank=True, 
+                                        help_text="Tasks that must be completed before this task can start")
+    
     # Impact on project progress (percentage contribution)
     impact = models.DecimalField(
         max_digits=5, 
@@ -79,6 +83,12 @@ class Task(models.Model):
     due_date = models.DateField(null=True, blank=True)
     estimated_hours = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
     actual_hours = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+    
+    # Time tracking
+    time_logs = models.JSONField(default=list, blank=True, 
+                                 help_text="Array of time log entries {user_id, start_time, end_time, duration_minutes, note}")
+    active_timer = models.JSONField(null=True, blank=True, 
+                                    help_text="Currently running timer {user_id, start_time}")
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -132,6 +142,25 @@ class Task(models.Model):
         # Update project progress
         project.progress = progress
         project.save(update_fields=['progress'])
+    
+    def get_blocked_by(self):
+        """Get tasks that are blocking this task (dependencies not completed)"""
+        return self.depends_on.exclude(status='done')
+    
+    def get_blocking_tasks(self):
+        """Get tasks that this task is blocking"""
+        return self.blocking_tasks.all()
+    
+    def can_start(self):
+        """Check if all dependencies are completed"""
+        return not self.get_blocked_by().exists()
+    
+    def get_total_time_logged(self):
+        """Calculate total time logged in hours"""
+        if not self.time_logs:
+            return 0
+        total_minutes = sum(entry.get('duration_minutes', 0) for entry in self.time_logs)
+        return round(total_minutes / 60, 2)
     
     def __str__(self):
         return f"{self.project.name} - {self.title}"
@@ -235,3 +264,145 @@ class ProjectMessage(models.Model):
     
     def __str__(self):
         return f"{self.sender.username} in {self.project.name}: {self.message[:50]}"
+
+
+class Milestone(models.Model):
+    """Project milestones to track key deliverables"""
+    
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('in_progress', 'In Progress'),
+        ('completed', 'Completed'),
+        ('missed', 'Missed'),
+    ]
+    
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='milestones')
+    name = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    due_date = models.DateField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    
+    # Tasks associated with this milestone
+    tasks = models.ManyToManyField(Task, related_name='milestones', blank=True)
+    
+    # Progress tracking
+    progress = models.IntegerField(default=0, help_text="Progress percentage (0-100)")
+    
+    completed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['due_date']
+    
+    def __str__(self):
+        return f"{self.project.name} - {self.name}"
+    
+    def update_progress(self):
+        """Calculate milestone progress based on associated tasks"""
+        tasks = self.tasks.all()
+        if tasks.count() == 0:
+            return
+        
+        completed_tasks = tasks.filter(status='done').count()
+        self.progress = int((completed_tasks / tasks.count()) * 100)
+        
+        # Auto-update status
+        if self.progress == 100:
+            self.status = 'completed'
+            if not self.completed_at:
+                self.completed_at = timezone.now()
+        elif self.progress > 0:
+            self.status = 'in_progress'
+        
+        # Check if missed
+        if self.due_date < timezone.now().date() and self.status != 'completed':
+            self.status = 'missed'
+        
+        self.save(update_fields=['progress', 'status', 'completed_at'])
+
+
+class ProjectTemplate(models.Model):
+    """Templates for creating new projects with predefined structure"""
+    
+    name = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    category = models.CharField(max_length=100, blank=True, 
+                                help_text="Template category (e.g., Software Development, Marketing, Research)")
+    
+    # Template settings
+    default_priority = models.CharField(max_length=20, choices=Project.PRIORITY_CHOICES, default='medium')
+    estimated_duration_days = models.IntegerField(null=True, blank=True, 
+                                                   help_text="Estimated project duration in days")
+    
+    # Creator and visibility
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_templates')
+    is_public = models.BooleanField(default=False, help_text="Available to all users")
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return self.name
+
+
+class TaskTemplate(models.Model):
+    """Template tasks that are part of a project template"""
+    
+    project_template = models.ForeignKey(ProjectTemplate, on_delete=models.CASCADE, 
+                                         related_name='task_templates')
+    title = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    priority = models.CharField(max_length=20, choices=Task.PRIORITY_CHOICES, default='medium')
+    
+    # Time estimates
+    estimated_hours = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+    impact = models.DecimalField(max_digits=5, decimal_places=2, default=0.00,
+                                 help_text="Impact on project progress (0-100%)")
+    
+    # Ordering and dependencies
+    order = models.IntegerField(default=0, help_text="Order in which tasks should be created")
+    depends_on_order = models.JSONField(default=list, blank=True, 
+                                        help_text="List of order numbers this task depends on")
+    
+    # Offset from project start date
+    start_offset_days = models.IntegerField(default=0, 
+                                            help_text="Days after project start when this task should begin")
+    duration_days = models.IntegerField(null=True, blank=True, 
+                                        help_text="Expected duration for this task")
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['order']
+    
+    def __str__(self):
+        return f"{self.project_template.name} - {self.title}"
+
+
+class MilestoneTemplate(models.Model):
+    """Template milestones for project templates"""
+    
+    project_template = models.ForeignKey(ProjectTemplate, on_delete=models.CASCADE, 
+                                         related_name='milestone_templates')
+    name = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    
+    # Offset from project start date
+    due_offset_days = models.IntegerField(help_text="Days after project start when milestone is due")
+    
+    # Associated task templates (by order number)
+    task_orders = models.JSONField(default=list, blank=True, 
+                                   help_text="List of task order numbers associated with this milestone")
+    
+    order = models.IntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['order']
+    
+    def __str__(self):
+        return f"{self.project_template.name} - {self.name}"

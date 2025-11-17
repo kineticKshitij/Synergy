@@ -1,5 +1,8 @@
 from django.contrib import admin
-from .models import Project, Task, Comment, ProjectActivity, TaskAttachment, ProjectMessage
+from .models import (
+    Project, Task, Comment, ProjectActivity, TaskAttachment, ProjectMessage,
+    Milestone, ProjectTemplate, TaskTemplate, MilestoneTemplate
+)
 
 
 @admin.register(Project)
@@ -52,4 +55,34 @@ class ProjectMessageAdmin(admin.ModelAdmin):
     def message_preview(self, obj):
         return obj.message[:50] + '...' if len(obj.message) > 50 else obj.message
     message_preview.short_description = 'Message'
+
+
+@admin.register(Milestone)
+class MilestoneAdmin(admin.ModelAdmin):
+    list_display = ['name', 'project', 'status', 'due_date', 'progress', 'created_at']
+    list_filter = ['status', 'due_date', 'project']
+    search_fields = ['name', 'description']
+    filter_horizontal = ['tasks']
+
+
+@admin.register(ProjectTemplate)
+class ProjectTemplateAdmin(admin.ModelAdmin):
+    list_display = ['name', 'category', 'created_by', 'is_public', 'estimated_duration_days', 'created_at']
+    list_filter = ['category', 'is_public', 'created_at']
+    search_fields = ['name', 'description']
+
+
+@admin.register(TaskTemplate)
+class TaskTemplateAdmin(admin.ModelAdmin):
+    list_display = ['title', 'project_template', 'priority', 'order', 'estimated_hours']
+    list_filter = ['project_template', 'priority']
+    search_fields = ['title', 'description']
+
+
+@admin.register(MilestoneTemplate)
+class MilestoneTemplateAdmin(admin.ModelAdmin):
+    list_display = ['name', 'project_template', 'due_offset_days', 'order']
+    list_filter = ['project_template']
+    search_fields = ['name', 'description']
+
 

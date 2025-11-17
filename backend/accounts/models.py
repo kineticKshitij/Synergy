@@ -27,6 +27,12 @@ class UserProfile(models.Model):
     invited_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, 
                                     related_name='invited_users')
     invitation_sent_at = models.DateTimeField(null=True, blank=True)
+    
+    # 2FA/OTP fields
+    otp_code = models.CharField(max_length=6, blank=True, null=True, help_text="6-digit OTP code")
+    otp_created_at = models.DateTimeField(null=True, blank=True, help_text="When OTP was generated")
+    otp_attempts = models.IntegerField(default=0, help_text="Number of failed OTP verification attempts")
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     

@@ -183,10 +183,36 @@ function ProjectDetailsContent() {
             const attachments = await projectService.getTaskAttachments(task.id);
             setTaskProofs(attachments);
             setSelectedTaskForProof(task);
-            setShowProofModal(true);
         } catch (error) {
             console.error('Failed to load proofs:', error);
-            alert('Failed to load proof files');
+        }
+    };
+
+    const handleDeleteProject = async () => {
+        if (!window.confirm('Are you sure you want to delete this project? This action cannot be undone.')) {
+            return;
+        }
+        
+        try {
+            await projectService.deleteProject(Number(id));
+            navigate('/projects');
+        } catch (error) {
+            console.error('Failed to delete project:', error);
+            alert('Failed to delete project. Please try again.');
+        }
+    };
+
+    const handleMarkProjectComplete = async () => {
+        if (!window.confirm('Mark this project as completed?')) {
+            return;
+        }
+        
+        try {
+            await projectService.updateProject(Number(id), { status: 'completed' });
+            await loadProject();
+        } catch (error) {
+            console.error('Failed to update project:', error);
+            alert('Failed to mark project as complete.');
         }
     };
 
@@ -203,19 +229,6 @@ function ProjectDetailsContent() {
         } catch (error) {
             console.error('Failed to remove team member:', error);
             alert('Failed to remove team member. Please try again.');
-        }
-    };
-
-    const handleMarkProjectComplete = async () => {
-        if (!project) return;
-        try {
-            await projectService.updateProject(project.id, { 
-                status: 'completed', 
-                progress: 100
-            });
-            await loadProject();
-        } catch (error) {
-            console.error('Failed to mark project as complete:', error);
         }
     };
 
@@ -319,7 +332,10 @@ function ProjectDetailsContent() {
                             >
                                 ✏️ Edit
                             </button>
-                            <button className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors">
+                            <button
+                                onClick={handleDeleteProject}
+                                className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
+                            >
                                 🗑️ Delete
                             </button>
                         </div>

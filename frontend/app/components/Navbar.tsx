@@ -109,8 +109,8 @@ export function Navbar() {
                                 </Link>
                                 {(user.role === 'manager' || user.role === 'admin') && (
                                     <Link
-                                        to="/team-dashboard"
-                                        className={`text-sm font-medium transition-colors ${isActive('/team-dashboard')
+                                        to="/team"
+                                        className={`text-sm font-medium transition-colors ${isActive('/team')
                                                 ? 'text-blue-400'
                                                 : 'text-gray-300 hover:text-white'
                                             }`}
@@ -283,7 +283,7 @@ export function Navbar() {
                                     </Link>
                                     {(user.role === 'manager' || user.role === 'admin') && (
                                         <Link
-                                            to="/team-dashboard"
+                                            to="/team"
                                             className="text-gray-300 hover:text-white transition-colors"
                                             onClick={() => setMobileMenuOpen(false)}
                                         >

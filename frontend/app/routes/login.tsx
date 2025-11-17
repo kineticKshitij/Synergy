@@ -17,8 +17,11 @@ export default function Login() {
     const { login } = useAuth();
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
+    const [otp, setOtp] = useState('');
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [use2FA, setUse2FA] = useState(false);
+    const [otpSent, setOtpSent] = useState(false);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -26,21 +29,64 @@ export default function Login() {
         setIsLoading(true);
 
         try {
-            await login(username, password);
+            // If 2FA is enabled and OTP not sent yet, request OTP
+            if (use2FA && !otpSent) {
+                // Send OTP request
+                const token = localStorage.getItem('access_token');
+                const response = await fetch('/api/auth/send-otp/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ username, password }),
+                });
+
+                if (response.ok) {
+                    setOtpSent(true);
+                    setError('');
+                    alert('OTP sent to your registered email/phone');
+                } else {
+                    const data = await response.json();
+                    setError(data.detail || 'Failed to send OTP');
+                }
+                setIsLoading(false);
+                return;
+            }
+
+            // If 2FA is enabled and OTP is sent, verify OTP
+            if (use2FA && otpSent) {
+                const response = await fetch('/api/auth/verify-otp/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ username, password, otp }),
+                });
+
+                if (!response.ok) {
+                    const data = await response.json();
+                    throw new Error(data.detail || 'Invalid OTP');
+                }
+                
+                const data = await response.json();
+                localStorage.setItem('access_token', data.access);
+                localStorage.setItem('refresh_token', data.refresh);
+            } else {
+                // Normal login without 2FA
+                await login(username, password);
+            }
             
             // Get user profile to determine redirect
             const userProfile = await authService.getProfile();
             
             // Redirect based on user role
-            // If role is manager or admin, go to manager dashboard
-            // Otherwise, go to team member dashboard
             if (userProfile.role === 'manager' || userProfile.role === 'admin') {
                 navigate('/dashboard');
             } else {
                 navigate('/team-dashboard');
             }
         } catch (err: any) {
-            setError(err.response?.data?.detail || 'Invalid username or password');
+            setError(err.response?.data?.detail || err.message || 'Invalid username or password');
         } finally {
             setIsLoading(false);
         }
@@ -81,19 +127,16 @@ export default function Login() {
                             >
                                 Username or Email
                             </label>
-                            <div className="relative">
-                                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                <input
-                                    type="text"
-                                    id="username"
-                                    value={username}
-                                    onChange={(e) => setUsername(e.target.value)}
-                                    className="input-enhanced w-full pl-10 pr-4"
-                                    placeholder="Enter your username or email"
-                                    required
-                                    disabled={isLoading}
-                                />
-                            </div>
+                            <input
+                                type="text"
+                                id="username"
+                                value={username}
+                                onChange={(e) => setUsername(e.target.value)}
+                                className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                                placeholder="Enter your username or email"
+                                required
+                                disabled={isLoading}
+                            />
                         </div>
 
                         {/* Password Field */}
@@ -104,20 +147,66 @@ export default function Login() {
                             >
                                 Password
                             </label>
-                            <div className="relative">
-                                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                            <input
+                                type="password"
+                                id="password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                                placeholder="Enter your password"
+                                required
+                                disabled={isLoading}
+                            />
+                        </div>
+
+                        {/* 2FA Toggle */}
+                        <div className="flex items-center justify-between py-3 px-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                            <div className="flex items-center gap-2">
+                                <Lock className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                                <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                                    Use 2-Factor Authentication (OTP)
+                                </span>
+                            </div>
+                            <label className="relative inline-flex items-center cursor-pointer">
                                 <input
-                                    type="password"
-                                    id="password"
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    className="input-enhanced w-full pl-10 pr-4"
-                                    placeholder="Enter your password"
+                                    type="checkbox"
+                                    checked={use2FA}
+                                    onChange={(e) => {
+                                        setUse2FA(e.target.checked);
+                                        setOtpSent(false);
+                                        setOtp('');
+                                    }}
+                                    className="sr-only peer"
+                                />
+                                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                            </label>
+                        </div>
+
+                        {/* OTP Field - Show only when 2FA is enabled and OTP is sent */}
+                        {use2FA && otpSent && (
+                            <div className="animate-slideInDown">
+                                <label
+                                    htmlFor="otp"
+                                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                                >
+                                    Enter OTP
+                                </label>
+                                <input
+                                    type="text"
+                                    id="otp"
+                                    value={otp}
+                                    onChange={(e) => setOtp(e.target.value)}
+                                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-center text-2xl tracking-widest"
+                                    placeholder="000000"
+                                    maxLength={6}
                                     required
                                     disabled={isLoading}
                                 />
+                                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 text-center">
+                                    Check your email/phone for the OTP code
+                                </p>
                             </div>
-                        </div>
+                        )}
 
                         {/* Remember Me & Forgot Password */}
                         <div className="flex items-center justify-between">
@@ -147,10 +236,10 @@ export default function Login() {
                             {isLoading ? (
                                 <>
                                     <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                    Signing in...
+                                    {use2FA && !otpSent ? 'Sending OTP...' : use2FA && otpSent ? 'Verifying...' : 'Signing in...'}
                                 </>
                             ) : (
-                                'Sign In'
+                                use2FA && !otpSent ? 'Send OTP' : 'Sign In'
                             )}
                         </button>
                     </form>

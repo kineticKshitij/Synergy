@@ -1,6 +1,9 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import Project, Task, Comment, ProjectActivity, TaskAttachment, ProjectMessage
+from .models import (
+    Project, Task, Comment, ProjectActivity, TaskAttachment, ProjectMessage,
+    Milestone, ProjectTemplate, TaskTemplate, MilestoneTemplate
+)
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -37,6 +40,15 @@ class TaskSerializer(serializers.ModelSerializer):
         required=False,
         allow_empty=True
     )
+    depends_on = serializers.PrimaryKeyRelatedField(
+        many=True,
+        queryset=Task.objects.all(),
+        required=False
+    )
+    blocking_tasks = serializers.PrimaryKeyRelatedField(many=True, read_only=True)
+    blocked_by = serializers.SerializerMethodField()
+    can_start = serializers.SerializerMethodField()
+    total_time_logged = serializers.SerializerMethodField()
     comment_count = serializers.SerializerMethodField()
     has_attachments = serializers.SerializerMethodField()
     
@@ -45,30 +57,67 @@ class TaskSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'project', 'title', 'description', 'status', 'priority',
             'assigned_to', 'assigned_to_id', 'assigned_to_multiple', 'assigned_to_multiple_ids',
+            'depends_on', 'blocking_tasks', 'blocked_by', 'can_start',
             'due_date', 'estimated_hours', 'actual_hours', 'impact', 
+            'time_logs', 'active_timer', 'total_time_logged',
             'created_at', 'updated_at', 'completed_at', 'comment_count', 'has_attachments'
         ]
-        read_only_fields = ['created_at', 'updated_at']
+        read_only_fields = ['created_at', 'updated_at', 'time_logs', 'active_timer']
+    
+    def get_blocked_by(self, obj):
+        """Get incomplete dependencies"""
+        blocked = obj.get_blocked_by()
+        return [{'id': t.id, 'title': t.title, 'status': t.status} for t in blocked]
+    
+    def get_can_start(self, obj):
+        """Check if task can be started"""
+        return obj.can_start()
+    
+    def get_total_time_logged(self, obj):
+        """Get total time logged in hours"""
+        return obj.get_total_time_logged()
     
     def create(self, validated_data):
-        """Handle creation with multiple assignments"""
+        """Handle creation with multiple assignments and dependencies"""
         assigned_to_multiple_ids = validated_data.pop('assigned_to_multiple_ids', [])
+        depends_on = validated_data.pop('depends_on', [])
         task = super().create(validated_data)
         
         if assigned_to_multiple_ids:
             task.assigned_to_multiple.set(assigned_to_multiple_ids)
         
+        if depends_on:
+            task.depends_on.set(depends_on)
+        
         return task
     
     def update(self, instance, validated_data):
-        """Handle update with multiple assignments"""
+        """Handle update with multiple assignments and dependencies"""
         assigned_to_multiple_ids = validated_data.pop('assigned_to_multiple_ids', None)
+        depends_on = validated_data.pop('depends_on', None)
         task = super().update(instance, validated_data)
         
         if assigned_to_multiple_ids is not None:
             task.assigned_to_multiple.set(assigned_to_multiple_ids)
         
+        if depends_on is not None:
+            # Validate no circular dependencies
+            self.validate_dependencies(task, depends_on)
+            task.depends_on.set(depends_on)
+        
         return task
+    
+    def validate_dependencies(self, task, depends_on):
+        """Validate no circular dependencies"""
+        for dep_task in depends_on:
+            if dep_task.id == task.id:
+                raise serializers.ValidationError("Task cannot depend on itself")
+            
+            # Check if dep_task depends on current task (circular dependency)
+            if task in dep_task.depends_on.all():
+                raise serializers.ValidationError(
+                    f"Circular dependency detected: {dep_task.title} already depends on this task"
+                )
     
     def validate_impact(self, value):
         """Validate that impact is between 0 and 100"""
@@ -261,4 +310,100 @@ class TeamMemberDashboardSerializer(serializers.Serializer):
             'unread_messages': unread_messages,
             'completion_rate': round((completed_tasks / total_tasks * 100), 1) if total_tasks > 0 else 0
         }
+
+
+class MilestoneSerializer(serializers.ModelSerializer):
+    """Serializer for project milestones"""
+    tasks = TaskSerializer(many=True, read_only=True)
+    task_ids = serializers.ListField(
+        child=serializers.IntegerField(),
+        write_only=True,
+        required=False,
+        allow_empty=True
+    )
+    is_overdue = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Milestone
+        fields = [
+            'id', 'project', 'name', 'description', 'due_date', 'status',
+            'tasks', 'task_ids', 'progress', 'completed_at', 'is_overdue',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['progress', 'created_at', 'updated_at', 'completed_at']
+    
+    def get_is_overdue(self, obj):
+        """Check if milestone is overdue"""
+        from django.utils import timezone
+        return obj.due_date < timezone.now().date() and obj.status != 'completed'
+    
+    def create(self, validated_data):
+        """Create milestone and associate tasks"""
+        task_ids = validated_data.pop('task_ids', [])
+        milestone = super().create(validated_data)
+        
+        if task_ids:
+            milestone.tasks.set(task_ids)
+            milestone.update_progress()
+        
+        return milestone
+    
+    def update(self, instance, validated_data):
+        """Update milestone and tasks"""
+        task_ids = validated_data.pop('task_ids', None)
+        milestone = super().update(instance, validated_data)
+        
+        if task_ids is not None:
+            milestone.tasks.set(task_ids)
+            milestone.update_progress()
+        
+        return milestone
+
+
+class TaskTemplateSerializer(serializers.ModelSerializer):
+    """Serializer for task templates"""
+    
+    class Meta:
+        model = TaskTemplate
+        fields = [
+            'id', 'project_template', 'title', 'description', 'priority',
+            'estimated_hours', 'impact', 'order', 'depends_on_order',
+            'start_offset_days', 'duration_days', 'created_at'
+        ]
+        read_only_fields = ['created_at']
+
+
+class MilestoneTemplateSerializer(serializers.ModelSerializer):
+    """Serializer for milestone templates"""
+    
+    class Meta:
+        model = MilestoneTemplate
+        fields = [
+            'id', 'project_template', 'name', 'description',
+            'due_offset_days', 'task_orders', 'order', 'created_at'
+        ]
+        read_only_fields = ['created_at']
+
+
+class ProjectTemplateSerializer(serializers.ModelSerializer):
+    """Serializer for project templates"""
+    created_by = UserSerializer(read_only=True)
+    task_templates = TaskTemplateSerializer(many=True, read_only=True)
+    milestone_templates = MilestoneTemplateSerializer(many=True, read_only=True)
+    task_count = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = ProjectTemplate
+        fields = [
+            'id', 'name', 'description', 'category', 'default_priority',
+            'estimated_duration_days', 'created_by', 'is_public',
+            'task_templates', 'milestone_templates', 'task_count',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['created_at', 'updated_at']
+    
+    def get_task_count(self, obj):
+        """Get count of task templates"""
+        return obj.task_templates.count()
+
 

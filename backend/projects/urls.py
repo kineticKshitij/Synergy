@@ -10,6 +10,11 @@ router.register(r'attachments', views.TaskAttachmentViewSet, basename='attachmen
 router.register(r'messages', views.ProjectMessageViewSet, basename='message')
 router.register(r'team-dashboard', views.TeamMemberDashboardView, basename='team-dashboard')
 router.register(r'ai', views.AIViewSet, basename='ai')
+router.register(r'milestones', views.MilestoneViewSet, basename='milestone')
+router.register(r'time-tracking', views.TimeTrackingViewSet, basename='time-tracking')
+router.register(r'project-templates', views.ProjectTemplateViewSet, basename='project-template')
+router.register(r'task-templates', views.TaskTemplateViewSet, basename='task-template')
+router.register(r'milestone-templates', views.MilestoneTemplateViewSet, basename='milestone-template')
 
 urlpatterns = [
     path('', include(router.urls)),

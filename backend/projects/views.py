@@ -11,7 +11,9 @@ from .models import Project, Task, Comment, ProjectActivity, TaskAttachment, Pro
 from .serializers import (
     ProjectSerializer, TaskSerializer, CommentSerializer,
     ProjectActivitySerializer, TaskAttachmentSerializer,
-    ProjectMessageSerializer, TeamMemberDashboardSerializer
+    ProjectMessageSerializer, TeamMemberDashboardSerializer,
+    MilestoneSerializer, ProjectTemplateSerializer, TaskTemplateSerializer,
+    MilestoneTemplateSerializer
 )
 
 
@@ -836,5 +838,528 @@ class AIViewSet(viewsets.ViewSet):
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+class MilestoneViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for managing project milestones
+    """
+    serializer_class = MilestoneSerializer
+    permission_classes = [IsAuthenticated, IsProjectOwner]
+    
+    def get_queryset(self):
+        """Only return milestones from projects user has access to"""
+        user = self.request.user
+        from .models import Milestone
+        queryset = Milestone.objects.filter(
+            models.Q(project__owner=user) | models.Q(project__team_members=user)
+        ).distinct().select_related('project').prefetch_related('tasks')
+        
+        # Filter by project if provided
+        project_id = self.request.query_params.get('project', None)
+        if project_id is not None:
+            queryset = queryset.filter(project_id=project_id)
+        
+        return queryset
+    
+    def perform_create(self, serializer):
+        """Create milestone and log activity"""
+        milestone = serializer.save()
+        
+        ProjectActivity.objects.create(
+            project=milestone.project,
+            user=self.request.user,
+            action='milestone_created',
+            description=f'Created milestone: {milestone.name}'
+        )
+    
+    def perform_update(self, serializer):
+        """Update milestone and log activity"""
+        milestone = serializer.save()
+        milestone.update_progress()
+        
+        ProjectActivity.objects.create(
+            project=milestone.project,
+            user=self.request.user,
+            action='milestone_updated',
+            description=f'Updated milestone: {milestone.name}'
+        )
+    
+    @action(detail=True, methods=['post'])
+    def refresh_progress(self, request, pk=None):
+        """Manually refresh milestone progress"""
+        milestone = self.get_object()
+        milestone.update_progress()
+        
+        serializer = self.get_serializer(milestone)
+        return Response(serializer.data)
+
+
+class TimeTrackingViewSet(viewsets.ViewSet):
+    """
+    ViewSet for time tracking on tasks
+    """
+    permission_classes = [IsAuthenticated]
+    
+    @action(detail=False, methods=['post'])
+    def start_timer(self, request):
+        """Start timer for a task"""
+        task_id = request.data.get('task_id')
+        
+        if not task_id:
+            return Response(
+                {'error': 'task_id is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            task = Task.objects.get(id=task_id)
+            
+            # Check if user has access to this task
+            user = request.user
+            if not (task.project.owner == user or user in task.project.team_members.all()):
+                return Response(
+                    {'error': 'You do not have access to this task'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            
+            # Check if timer is already running
+            if task.active_timer:
+                return Response(
+                    {'error': 'Timer is already running for this task'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Start timer
+            task.active_timer = {
+                'user_id': user.id,
+                'start_time': timezone.now().isoformat()
+            }
+            task.save(update_fields=['active_timer'])
+            
+            return Response({
+                'status': 'timer_started',
+                'task_id': task.id,
+                'start_time': task.active_timer['start_time']
+            })
+            
+        except Task.DoesNotExist:
+            return Response(
+                {'error': 'Task not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+    
+    @action(detail=False, methods=['post'])
+    def stop_timer(self, request):
+        """Stop timer for a task and log the time"""
+        task_id = request.data.get('task_id')
+        note = request.data.get('note', '')
+        
+        if not task_id:
+            return Response(
+                {'error': 'task_id is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            task = Task.objects.get(id=task_id)
+            user = request.user
+            
+            # Check access
+            if not (task.project.owner == user or user in task.project.team_members.all()):
+                return Response(
+                    {'error': 'You do not have access to this task'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            
+            # Check if timer is running
+            if not task.active_timer:
+                return Response(
+                    {'error': 'No active timer for this task'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Calculate duration
+            start_time = timezone.datetime.fromisoformat(task.active_timer['start_time'])
+            end_time = timezone.now()
+            duration_minutes = int((end_time - start_time).total_seconds() / 60)
+            
+            # Create time log entry
+            time_entry = {
+                'user_id': user.id,
+                'username': user.username,
+                'start_time': task.active_timer['start_time'],
+                'end_time': end_time.isoformat(),
+                'duration_minutes': duration_minutes,
+                'note': note,
+                'logged_at': timezone.now().isoformat()
+            }
+            
+            # Add to time logs
+            if not task.time_logs:
+                task.time_logs = []
+            task.time_logs.append(time_entry)
+            
+            # Clear active timer
+            task.active_timer = None
+            
+            # Update actual hours
+            total_hours = task.get_total_time_logged()
+            task.actual_hours = total_hours
+            
+            task.save(update_fields=['time_logs', 'active_timer', 'actual_hours'])
+            
+            # Log activity
+            ProjectActivity.objects.create(
+                project=task.project,
+                user=user,
+                action='time_logged',
+                description=f'Logged {duration_minutes} minutes on task: {task.title}',
+                metadata={'duration_minutes': duration_minutes, 'task_id': task.id}
+            )
+            
+            return Response({
+                'status': 'timer_stopped',
+                'task_id': task.id,
+                'duration_minutes': duration_minutes,
+                'total_time_logged': total_hours
+            })
+            
+        except Task.DoesNotExist:
+            return Response(
+                {'error': 'Task not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+    
+    @action(detail=False, methods=['post'])
+    def log_time(self, request):
+        """Manually log time for a task (without timer)"""
+        task_id = request.data.get('task_id')
+        hours = request.data.get('hours')
+        note = request.data.get('note', '')
+        date = request.data.get('date')  # Optional specific date
+        
+        if not task_id or hours is None:
+            return Response(
+                {'error': 'task_id and hours are required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            hours = float(hours)
+            if hours <= 0:
+                raise ValueError()
+        except ValueError:
+            return Response(
+                {'error': 'hours must be a positive number'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            task = Task.objects.get(id=task_id)
+            user = request.user
+            
+            # Check access
+            if not (task.project.owner == user or user in task.project.team_members.all()):
+                return Response(
+                    {'error': 'You do not have access to this task'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            
+            # Create time log entry
+            duration_minutes = int(hours * 60)
+            log_time = timezone.now() if not date else timezone.datetime.fromisoformat(date)
+            
+            time_entry = {
+                'user_id': user.id,
+                'username': user.username,
+                'start_time': None,
+                'end_time': None,
+                'duration_minutes': duration_minutes,
+                'note': note,
+                'logged_at': log_time.isoformat(),
+                'manual_entry': True
+            }
+            
+            # Add to time logs
+            if not task.time_logs:
+                task.time_logs = []
+            task.time_logs.append(time_entry)
+            
+            # Update actual hours
+            total_hours = task.get_total_time_logged()
+            task.actual_hours = total_hours
+            
+            task.save(update_fields=['time_logs', 'actual_hours'])
+            
+            # Log activity
+            ProjectActivity.objects.create(
+                project=task.project,
+                user=user,
+                action='time_logged',
+                description=f'Logged {hours} hours on task: {task.title}',
+                metadata={'duration_minutes': duration_minutes, 'task_id': task.id}
+            )
+            
+            return Response({
+                'status': 'time_logged',
+                'task_id': task.id,
+                'duration_minutes': duration_minutes,
+                'total_time_logged': total_hours
+            })
+            
+        except Task.DoesNotExist:
+            return Response(
+                {'error': 'Task not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+    
+    @action(detail=False, methods=['get'])
+    def get_logs(self, request):
+        """Get time logs for a task or project"""
+        task_id = request.query_params.get('task_id')
+        project_id = request.query_params.get('project_id')
+        
+        if task_id:
+            try:
+                task = Task.objects.get(id=task_id)
+                user = request.user
+                
+                # Check access
+                if not (task.project.owner == user or user in task.project.team_members.all()):
+                    return Response(
+                        {'error': 'You do not have access to this task'},
+                        status=status.HTTP_403_FORBIDDEN
+                    )
+                
+                return Response({
+                    'task_id': task.id,
+                    'time_logs': task.time_logs or [],
+                    'total_time_logged': task.get_total_time_logged(),
+                    'active_timer': task.active_timer
+                })
+                
+            except Task.DoesNotExist:
+                return Response(
+                    {'error': 'Task not found'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+        
+        elif project_id:
+            try:
+                project = Project.objects.get(id=project_id)
+                user = request.user
+                
+                # Check access
+                if not (project.owner == user or user in project.team_members.all()):
+                    return Response(
+                        {'error': 'You do not have access to this project'},
+                        status=status.HTTP_403_FORBIDDEN
+                    )
+                
+                # Aggregate time logs from all tasks
+                tasks = project.tasks.all()
+                all_logs = []
+                total_time = 0
+                
+                for task in tasks:
+                    if task.time_logs:
+                        for log in task.time_logs:
+                            log_copy = log.copy()
+                            log_copy['task_id'] = task.id
+                            log_copy['task_title'] = task.title
+                            all_logs.append(log_copy)
+                            total_time += log.get('duration_minutes', 0)
+                
+                return Response({
+                    'project_id': project.id,
+                    'time_logs': all_logs,
+                    'total_time_minutes': total_time,
+                    'total_time_hours': round(total_time / 60, 2)
+                })
+                
+            except Project.DoesNotExist:
+                return Response(
+                    {'error': 'Project not found'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+        
+        else:
+            return Response(
+                {'error': 'Either task_id or project_id is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+
+class ProjectTemplateViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for project templates
+    """
+    serializer_class = ProjectTemplateSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        """Return public templates and user's own templates"""
+        user = self.request.user
+        from .models import ProjectTemplate
+        return ProjectTemplate.objects.filter(
+            models.Q(is_public=True) | models.Q(created_by=user)
+        ).distinct().prefetch_related('task_templates', 'milestone_templates')
+    
+    def perform_create(self, serializer):
+        """Set creator to current user"""
+        serializer.save(created_by=self.request.user)
+    
+    @action(detail=True, methods=['post'])
+    def create_project(self, request, pk=None):
+        """Create a new project from this template"""
+        from datetime import timedelta
+        template = self.get_object()
+        
+        # Get project details from request
+        project_name = request.data.get('name')
+        project_description = request.data.get('description', '')
+        start_date = request.data.get('start_date')
+        
+        if not project_name:
+            return Response(
+                {'error': 'Project name is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Parse start date
+        if start_date:
+            try:
+                start_date = timezone.datetime.fromisoformat(start_date).date()
+            except:
+                return Response(
+                    {'error': 'Invalid start_date format. Use ISO format (YYYY-MM-DD)'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        else:
+            start_date = timezone.now().date()
+        
+        # Calculate end date
+        end_date = None
+        if template.estimated_duration_days:
+            end_date = start_date + timedelta(days=template.estimated_duration_days)
+        
+        # Create project
+        project = Project.objects.create(
+            name=project_name,
+            description=project_description or template.description,
+            owner=request.user,
+            status='planning',
+            priority=template.default_priority,
+            start_date=start_date,
+            end_date=end_date
+        )
+        
+        # Create tasks from template
+        task_templates = template.task_templates.all().order_by('order')
+        task_mapping = {}  # Map template order to actual task
+        
+        for task_template in task_templates:
+            # Calculate due date
+            due_date = None
+            if task_template.duration_days:
+                task_start = start_date + timedelta(days=task_template.start_offset_days)
+                due_date = task_start + timedelta(days=task_template.duration_days)
+            
+            task = Task.objects.create(
+                project=project,
+                title=task_template.title,
+                description=task_template.description,
+                priority=task_template.priority,
+                estimated_hours=task_template.estimated_hours,
+                impact=task_template.impact,
+                due_date=due_date,
+                status='todo'
+            )
+            
+            task_mapping[task_template.order] = task
+        
+        # Set up dependencies
+        for task_template in task_templates:
+            if task_template.depends_on_order:
+                task = task_mapping[task_template.order]
+                dependencies = [
+                    task_mapping[dep_order]
+                    for dep_order in task_template.depends_on_order
+                    if dep_order in task_mapping
+                ]
+                task.depends_on.set(dependencies)
+        
+        # Create milestones from template
+        milestone_templates = template.milestone_templates.all().order_by('order')
+        
+        for milestone_template in milestone_templates:
+            due_date = start_date + timedelta(days=milestone_template.due_offset_days)
+            
+            from .models import Milestone
+            milestone = Milestone.objects.create(
+                project=project,
+                name=milestone_template.name,
+                description=milestone_template.description,
+                due_date=due_date,
+                status='pending'
+            )
+            
+            # Associate tasks with milestone
+            if milestone_template.task_orders:
+                milestone_tasks = [
+                    task_mapping[task_order]
+                    for task_order in milestone_template.task_orders
+                    if task_order in task_mapping
+                ]
+                milestone.tasks.set(milestone_tasks)
+                milestone.update_progress()
+        
+        # Log activity
+        ProjectActivity.objects.create(
+            project=project,
+            user=request.user,
+            action='created_from_template',
+            description=f'Created project from template: {template.name}',
+            metadata={'template_id': template.id}
+        )
+        
+        # Return created project
+        serializer = ProjectSerializer(project, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class TaskTemplateViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for task templates (part of project templates)
+    """
+    serializer_class = TaskTemplateSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        """Return task templates from accessible project templates"""
+        user = self.request.user
+        from .models import TaskTemplate
+        return TaskTemplate.objects.filter(
+            models.Q(project_template__is_public=True) | 
+            models.Q(project_template__created_by=user)
+        ).distinct().select_related('project_template')
+
+
+class MilestoneTemplateViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for milestone templates (part of project templates)
+    """
+    serializer_class = MilestoneTemplateSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        """Return milestone templates from accessible project templates"""
+        user = self.request.user
+        from .models import MilestoneTemplate
+        return MilestoneTemplate.objects.filter(
+            models.Q(project_template__is_public=True) | 
+            models.Q(project_template__created_by=user)
+        ).distinct().select_related('project_template')
 
 

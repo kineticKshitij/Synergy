@@ -2,7 +2,7 @@
 FROM node:20-alpine AS development-dependencies-env
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci
+RUN npm install --legacy-peer-deps
 
 FROM node:20-alpine AS build-env
 WORKDIR /app
@@ -16,7 +16,7 @@ WORKDIR /app
 
 # Copy package files and install production dependencies
 COPY package*.json ./
-RUN npm ci --omit=dev
+RUN npm install --omit=dev --legacy-peer-deps
 
 # Copy built application
 COPY --from=build-env /app/build ./build

@@ -207,6 +207,28 @@ const authService = {
             return false;
         }
     },
+
+    async sendOTP(username: string, password: string): Promise<{ message: string; email: string }> {
+        const response = await api.post('send-otp/', {
+            username,
+            password,
+        });
+        return response.data;
+    },
+
+    async verifyOTP(username: string, otp: string): Promise<LoginResponse & { user: User }> {
+        const response = await api.post('verify-otp/', {
+            username,
+            otp,
+        });
+
+        if (response.data.tokens) {
+            localStorage.setItem('access_token', response.data.tokens.access);
+            localStorage.setItem('refresh_token', response.data.tokens.refresh);
+        }
+
+        return response.data;
+    },
 };
 
 export default authService;
