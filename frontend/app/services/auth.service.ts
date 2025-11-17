@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { jwtDecode } from 'jwt-decode';
+import tokenStorage from './tokenStorage';
 
 // Use relative URL to go through nginx proxy
 const API_URL = '/api/auth/';
@@ -9,13 +10,15 @@ const api = axios.create({
     headers: {
         'Content-Type': 'application/json',
     },
+    withCredentials: true,
 });
 
 // Add a request interceptor to add the token to all requests
 api.interceptors.request.use(
     (config) => {
-        const token = localStorage.getItem('access_token');
+        const token = tokenStorage.getAccessToken();
         if (token) {
+            config.headers = config.headers ?? {};
             config.headers.Authorization = `Bearer ${token}`;
         }
         return config;
@@ -35,20 +38,29 @@ api.interceptors.response.use(
             originalRequest._retry = true;
 
             try {
-                const refreshToken = localStorage.getItem('refresh_token');
-                const response = await axios.post(`${API_URL}token/refresh/`, {
-                    refresh: refreshToken,
-                });
+                const response = await axios.post(
+                    `${API_URL}token/refresh/`,
+                    {},
+                    {
+                        withCredentials: true,
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                    },
+                );
 
                 const { access } = response.data;
-                localStorage.setItem('access_token', access);
+                if (access) {
+                    tokenStorage.setAccessToken(access);
+                    originalRequest.headers = originalRequest.headers ?? {};
+                    originalRequest.headers.Authorization = `Bearer ${access}`;
+                    return api(originalRequest);
+                }
 
-                originalRequest.headers.Authorization = `Bearer ${access}`;
-                return api(originalRequest);
+                throw new Error('Unable to refresh access token');
             } catch (refreshError) {
+                tokenStorage.clear();
                 // Refresh token is invalid, logout user
-                localStorage.removeItem('access_token');
-                localStorage.removeItem('refresh_token');
                 window.location.href = '/login';
                 return Promise.reject(refreshError);
             }
@@ -69,7 +81,7 @@ export interface User {
 
 export interface LoginResponse {
     access: string;
-    refresh: string;
+    refresh?: string;
 }
 
 export interface RegisterData {
@@ -85,7 +97,7 @@ export interface RegisterResponse {
     user: User;
     tokens: {
         access: string;
-        refresh: string;
+        refresh?: string;
     };
     message: string;
 }
@@ -131,8 +143,7 @@ const authService = {
         });
 
         if (response.data.access) {
-            localStorage.setItem('access_token', response.data.access);
-            localStorage.setItem('refresh_token', response.data.refresh);
+            tokenStorage.setAccessToken(response.data.access);
         }
 
         return response.data;
@@ -142,26 +153,20 @@ const authService = {
         const response = await api.post<RegisterResponse>('register/', data);
 
         if (response.data.tokens) {
-            localStorage.setItem('access_token', response.data.tokens.access);
-            localStorage.setItem('refresh_token', response.data.tokens.refresh);
+            tokenStorage.setAccessToken(response.data.tokens.access);
         }
 
         return response.data;
     },
 
     async logout(): Promise<void> {
-        const refreshToken = localStorage.getItem('refresh_token');
-
-        if (refreshToken) {
-            try {
-                await api.post('logout/', { refresh: refreshToken });
-            } catch (error) {
-                console.error('Logout error:', error);
-            }
+        try {
+            await api.post('logout/', {});
+        } catch (error) {
+            console.error('Logout error:', error);
         }
 
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('refresh_token');
+        tokenStorage.clear();
     },
 
     async getProfile(): Promise<User> {
@@ -184,28 +189,21 @@ const authService = {
     },
 
     getCurrentUser(): User | null {
-        const token = localStorage.getItem('access_token');
-        if (token) {
-            try {
-                const decoded: any = jwtDecode(token);
-                return decoded.user || null;
-            } catch {
-                return null;
-            }
+        const token = tokenStorage.getAccessToken();
+        if (!token) {
+            return null;
         }
-        return null;
-    },
-
-    isAuthenticated(): boolean {
-        const token = localStorage.getItem('access_token');
-        if (!token) return false;
 
         try {
             const decoded: any = jwtDecode(token);
-            return decoded.exp * 1000 > Date.now();
+            return decoded.user || null;
         } catch {
-            return false;
+            return null;
         }
+    },
+
+    isAuthenticated(): boolean {
+        return tokenStorage.hasValidToken();
     },
 
     async sendOTP(username: string, password: string): Promise<{ message: string; email: string }> {
@@ -222,12 +220,38 @@ const authService = {
             otp,
         });
 
-        if (response.data.tokens) {
-            localStorage.setItem('access_token', response.data.tokens.access);
-            localStorage.setItem('refresh_token', response.data.tokens.refresh);
+        const accessToken = response.data.tokens?.access;
+        if (accessToken) {
+            tokenStorage.setAccessToken(accessToken);
         }
 
         return response.data;
+    },
+
+    async refreshAccessToken(): Promise<boolean> {
+        try {
+            const response = await axios.post<LoginResponse>(
+                `${API_URL}token/refresh/`,
+                {},
+                {
+                    withCredentials: true,
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                },
+            );
+
+            if (response.data.access) {
+                tokenStorage.setAccessToken(response.data.access);
+                return true;
+            }
+
+            tokenStorage.clear();
+            return false;
+        } catch (error) {
+            tokenStorage.clear();
+            throw error;
+        }
     },
 };
 

@@ -196,6 +196,13 @@ SIMPLE_JWT = {
     'USER_ID_CLAIM': 'user_id',
 }
 
+# Refresh token cookie settings
+REFRESH_TOKEN_COOKIE_NAME = config('REFRESH_TOKEN_COOKIE_NAME', default='synergy_refresh_token')
+REFRESH_TOKEN_COOKIE_PATH = config('REFRESH_TOKEN_COOKIE_PATH', default='/api/auth/')
+REFRESH_TOKEN_COOKIE_SECURE = config('REFRESH_TOKEN_COOKIE_SECURE', default=not DEBUG, cast=bool)
+REFRESH_TOKEN_COOKIE_SAMESITE = config('REFRESH_TOKEN_COOKIE_SAMESITE', default='None' if not DEBUG else 'Lax')
+REFRESH_TOKEN_COOKIE_DOMAIN = config('REFRESH_TOKEN_COOKIE_DOMAIN', default='')
+
 # Email Settings
 EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
 EMAIL_HOST = config('EMAIL_HOST', default='smtp.gmail.com')

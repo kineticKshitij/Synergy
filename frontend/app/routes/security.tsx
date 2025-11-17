@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { Route } from './+types/security';
 import { Navigate } from 'react-router';
+import tokenStorage from '~/services/tokenStorage';
 
 interface SecurityEvent {
   id: number;
@@ -31,13 +32,13 @@ export default function Security() {
 
   const fetchEvents = async () => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = tokenStorage.getAccessToken();
       if (!token) {
         setIsAuthenticated(false);
         return;
       }
 
-      const response = await fetch('http://localhost:8000/api/auth/security-events/', {
+      const response = await fetch('/api/auth/security-events/', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',

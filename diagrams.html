@@ -968,14 +968,16 @@
 
                     <!-- Startup Sequence -->
                     <div style="margin-top: 20px; background: #dcfce7; padding: 20px; border-radius: 10px; border: 2px solid #10b981;">
-                        <h4 style="color: #10b981; margin-bottom: 10px;">🚀 Startup Sequence:</h4>
+                        <h4 style="color: #10b981; margin-bottom: 10px;">🚀 Build → Test → Deploy Sequence:</h4>
                         <div style="font-family: monospace; background: white; padding: 15px; border-radius: 6px; margin-top: 10px;">
-                            1. docker-compose up -d db redis<br>
-                            2. Wait for health checks (pg_isready, redis-cli ping)<br>
-                            3. Start backend (migrations + collectstatic)<br>
-                            4. Start frontend (npm build)<br>
-                            5. Start nginx (proxy configuration)<br>
-                            6. Start celery worker + beat (background tasks)
+                            1. docker compose build backend frontend<br>
+                            2. docker compose run --rm backend sh -c &quot;python manage.py migrate && python manage.py test accounts&quot;<br>
+                            3. docker compose up -d db redis backend celery_worker celery_beat frontend nginx<br>
+                            4. docker compose logs backend --tail=50 (smoke check)
+                        </div>
+                        <div style="margin-top: 10px; font-size: 0.9em; color: #065f46;">
+                            • Step 2 blocks the rollout until migrations + Django tests succeed.<br>
+                            • Health probes (pg_isready, redis-cli ping) run automatically inside container entrypoints before the app accepts traffic.
                         </div>
                     </div>
                 </div>
@@ -1094,43 +1096,63 @@
 
                     <!-- JWT Flow Detail -->
                     <div style="margin-top: 40px; background: white; padding: 25px; border-radius: 10px; border-left: 5px solid #667eea;">
-                        <h4 style="color: #667eea; margin-bottom: 15px;">🎫 JWT Token Flow:</h4>
+                        <h4 style="color: #667eea; margin-bottom: 15px;">🎫 Cookie-Based Token Flow:</h4>
                         <div style="background: #f8f9fa; padding: 20px; border-radius: 8px;">
                             <div class="flow-step" style="max-width: 500px; margin: 15px auto;">
                                 <strong>1. Login Request</strong><br>
                                 <code style="background: #e5e7eb; padding: 5px 10px; border-radius: 4px; display: inline-block; margin-top: 5px;">
-                                    POST /api/login/ { email, password }
+                                    POST /auth/login/ { email, password }
                                 </code>
                             </div>
                             <div class="flow-step" style="max-width: 500px; margin: 15px auto;">
-                                <strong>2. Verify Credentials</strong><br>
-                                <span style="font-size: 0.9em;">Check password hash + user.is_active</span>
+                                <strong>2. Credentials & OTP Validation</strong><br>
+                                <span style="font-size: 0.9em;">Password hash + optional OTP must pass before issuing tokens</span>
                             </div>
                             <div class="flow-step" style="max-width: 500px; margin: 15px auto;">
-                                <strong>3. Generate JWT</strong><br>
+                                <strong>3. Refresh Cookie Issued</strong><br>
                                 <code style="background: #e5e7eb; padding: 5px 10px; border-radius: 4px; display: inline-block; margin-top: 5px;">
-                                    Payload: { user_id, email, role, exp: 24h }
-                                </code>
-                            </div>
-                            <div class="flow-step" style="max-width: 500px; margin: 15px auto;">
-                                <strong>4. Return Token</strong><br>
-                                <code style="background: #e5e7eb; padding: 5px 10px; border-radius: 4px; display: inline-block; margin-top: 5px;">
-                                    Response: { access_token, user_data }
+                                    Set-Cookie: synergy_refresh_token=<em>jwt</em>; HttpOnly; Secure; SameSite=Lax
                                 </code>
                             </div>
                             <div class="flow-step" style="max-width: 500px; margin: 15px auto; border-color: #10b981; background: #d1fae5;">
-                                <strong>5. Store Client-Side</strong><br>
-                                <span style="font-size: 0.9em;">localStorage.setItem('token', access_token)</span>
+                                <strong>4. Access Token Response</strong><br>
+                                <span style="font-size: 0.9em;">JSON body returns short-lived access token (60 min) + user profile</span>
                             </div>
                             <div class="flow-step" style="max-width: 500px; margin: 15px auto; border-color: #3b82f6; background: #dbeafe;">
-                                <strong>6. Subsequent Requests</strong><br>
+                                <strong>5. Session Storage Only</strong><br>
+                                <span style="font-size: 0.9em;">Frontend stores access token in memory/sessionStorage via tokenStorage.ts and enables <code>axios.defaults.withCredentials = true</code></span>
+                            </div>
+                            <div class="flow-step" style="max-width: 500px; margin: 15px auto; border-color: #6366f1; background: #eef2ff;">
+                                <strong>6. Authenticated Requests</strong><br>
                                 <code style="background: white; padding: 5px 10px; border-radius: 4px; display: inline-block; margin-top: 5px;">
-                                    Header: Authorization: Bearer &lt;token&gt;
+                                    Authorization: Bearer &lt;access&gt; + refresh cookie automatically attached
                                 </code>
+                                <div style="font-size: 0.85em; margin-top: 6px;">Axios interceptor retries once via <code>POST /auth/refresh/</code> when it sees 401 responses.</div>
                             </div>
                             <div class="flow-step" style="max-width: 500px; margin: 15px auto; border-color: #f59e0b; background: #fffbeb;">
-                                <strong>7. Verify Token</strong><br>
-                                <span style="font-size: 0.9em;">Decode + Validate signature + Check expiry</span>
+                                <strong>7. Logout & Revocation</strong><br>
+                                <span style="font-size: 0.9em;">/auth/logout/ clears <code>synergy_refresh_token</code> on the server and frontend wipes in-memory access token</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- OTP Flow Detail -->
+                    <div style="margin-top: 20px; background: #e0f2fe; padding: 25px; border-radius: 10px; border-left: 5px solid #0ea5e9;">
+                        <h4 style="color: #0ea5e9; margin-bottom: 15px;">🔐 OTP Verification Handshake:</h4>
+                        <div style="background: #f8f9fa; padding: 20px; border-radius: 8px;">
+                            <div class="flow-step" style="max-width: 500px; margin: 15px auto; border-color: #0ea5e9; background: #dbeafe;">
+                                <strong>1. Send OTP</strong><br>
+                                <code style="background: white; padding: 5px 10px; border-radius: 4px; display: inline-block; margin-top: 5px;">POST /auth/send-otp/</code><br>
+                                <span style="font-size: 0.85em;">Celery dispatches email/SMS with 6-digit code (5 min expiry).</span>
+                            </div>
+                            <div class="flow-step" style="max-width: 500px; margin: 15px auto; border-color: #34d399; background: #ecfdf5;">
+                                <strong>2. Verify OTP</strong><br>
+                                <code style="background: white; padding: 5px 10px; border-radius: 4px; display: inline-block; margin-top: 5px;">POST /auth/verify-otp/ { email, otp }</code><br>
+                                <span style="font-size: 0.85em;">Backend checks latest OTP entry, rate limits attempts, and marks it used.</span>
+                            </div>
+                            <div class="flow-step" style="max-width: 500px; margin: 15px auto; border-color: #f97316; background: #fff7ed;">
+                                <strong>3. Continue Login</strong><br>
+                                <span style="font-size: 0.9em;">Successful OTP unlocks token issuance; invalid/expired codes trigger alerts and lockout timers.</span>
                             </div>
                         </div>
                     </div>
@@ -2361,6 +2383,12 @@
                             Content-Type: application/json<br>
                             Accept: application/json
                         </div>
+                        <div style="margin-top: 12px; background: #eef2ff; padding: 12px; border-radius: 8px; font-size: 0.9em; color: #312e81;">
+                            <strong>Cookie-only endpoints:</strong> <code>/auth/refresh/</code> and <code>/auth/logout/</code> ignore the Authorization header and rely on the HttpOnly <code>synergy_refresh_token</code> cookie—keep <code>withCredentials</code> enabled so the browser sends it.
+                        </div>
+                        <div style="margin-top: 10px; background: #ede9fe; padding: 12px; border-radius: 8px; font-size: 0.9em; color: #4c1d95;">
+                            <strong>Access token lifetime:</strong> 60 minutes by default (<code>JWT_ACCESS_TOKEN_LIFETIME</code>), so clients should expect periodic refresh calls when 401 responses occur.
+                        </div>
                     </div>
                 </div>
             </div>
@@ -3412,6 +3440,16 @@
                                     test_unauthorized_access_returns_403()<br>
                                     test_task_assignment_notification()
                                 </code>
+                            </div>
+                        </div>
+
+                        <div style="background: #dcfce7; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px dashed #10b981;">
+                            <strong style="color: #10b981;">🧪 Containerized Test Gate</strong>
+                            <div style="margin-left: 20px; margin-top: 8px; font-family: monospace; font-size: 0.9em;">
+                                docker compose run --rm backend sh -c &quot;python manage.py migrate && python manage.py test accounts&quot;
+                            </div>
+                            <div style="margin-left: 20px; margin-top: 6px; font-size: 0.9em; color: #065f46;">
+                                Executed before every deployment to ensure migrations apply cleanly and the Django <code>accounts</code> suite stays green inside the same image that ships to production.
                             </div>
                         </div>
 

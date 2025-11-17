@@ -1,3 +1,5 @@
+import tokenStorage from './tokenStorage';
+
 /**
  * AI Service for Synergy Project Management
  * Provides AI-powered features including task suggestions, risk analysis, and insights
@@ -51,7 +53,13 @@ export interface PrioritizedTask {
 
 class AIService {
     private getAuthHeaders(): HeadersInit {
-        const token = localStorage.getItem('access_token');
+        const token = tokenStorage.getAccessToken();
+        if (!token) {
+            return {
+                'Content-Type': 'application/json',
+            };
+        }
+
         return {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',

@@ -20,20 +20,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     useEffect(() => {
         // Check if user is authenticated on mount
-        const checkAuth = async () => {
-            if (authService.isAuthenticated()) {
-                try {
+        const initializeAuth = async () => {
+            try {
+                let hasValidToken = authService.isAuthenticated();
+
+                if (!hasValidToken) {
+                    try {
+                        await authService.refreshAccessToken();
+                        hasValidToken = authService.isAuthenticated();
+                    } catch (refreshError) {
+                        hasValidToken = false;
+                    }
+                }
+
+                if (hasValidToken) {
                     const userData = await authService.getProfile();
                     setUser(userData);
-                } catch (error) {
-                    console.error('Failed to fetch user:', error);
-                    authService.logout();
                 }
+            } catch (error) {
+                console.error('Failed to initialize auth:', error);
+                await authService.logout();
+            } finally {
+                setIsLoading(false);
             }
-            setIsLoading(false);
         };
 
-        checkAuth();
+        initializeAuth();
     }, []);
 
     const login = async (username: string, password: string) => {

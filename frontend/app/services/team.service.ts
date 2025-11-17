@@ -1,3 +1,5 @@
+import tokenStorage from './tokenStorage';
+
 /**
  * Team Service
  * Handles team member invitation and management
@@ -53,11 +55,18 @@ export interface InvitationResponse {
 }
 
 /**
- * Get auth token from localStorage
+ * Get auth token from secure storage
  */
 const getAccessToken = (): string | null => {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem('access_token');
+  return tokenStorage.getAccessToken();
+};
+
+const requireAccessToken = (): string => {
+  const token = getAccessToken();
+  if (!token) {
+    throw new Error('Missing access token');
+  }
+  return token;
 };
 
 /**
@@ -66,7 +75,7 @@ const getAccessToken = (): string | null => {
 export const inviteTeamMember = async (
   data: InviteTeamMemberData
 ): Promise<InvitationResponse> => {
-  const token = getAccessToken();
+  const token = requireAccessToken();
   
   const response = await fetch('/api/auth/invite/', {
     method: 'POST',
@@ -93,7 +102,7 @@ export const inviteTeamMember = async (
  * Get extended user profile information
  */
 export const getMyProfile = async (): Promise<UserProfile> => {
-  const token = getAccessToken();
+  const token = requireAccessToken();
 
   const response = await fetch('/api/auth/profile/extended/', {
     method: 'GET',
@@ -114,7 +123,7 @@ export const getMyProfile = async (): Promise<UserProfile> => {
  * Get all team members from user's projects
  */
 export const getTeamMembers = async (): Promise<TeamMember[]> => {
-  const token = getAccessToken();
+  const token = requireAccessToken();
 
   const response = await fetch('/api/auth/team-members/', {
     method: 'GET',
@@ -137,7 +146,7 @@ export const getTeamMembers = async (): Promise<TeamMember[]> => {
 export const updateProfile = async (
   data: Partial<UserProfile>
 ): Promise<UserProfile> => {
-  const token = getAccessToken();
+  const token = requireAccessToken();
 
   const response = await fetch('/api/auth/profile/extended/', {
     method: 'PATCH',
@@ -163,7 +172,7 @@ export const removeTeamMember = async (
   projectId: number,
   userId: number
 ): Promise<{ message: string; removed_user: TeamMember }> => {
-  const token = getAccessToken();
+  const token = requireAccessToken();
 
   const response = await fetch('/api/auth/remove-member/', {
     method: 'DELETE',

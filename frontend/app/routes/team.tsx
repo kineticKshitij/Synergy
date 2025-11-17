@@ -4,6 +4,7 @@ import { ProtectedRoute } from '~/components/ProtectedRoute';
 import { Navbar } from '~/components/Navbar';
 import { LoadingScreen } from '~/components/LoadingScreen';
 import { Search, Mail, Phone, MapPin, Briefcase, UserPlus, Filter } from 'lucide-react';
+import tokenStorage from '~/services/tokenStorage';
 
 export function meta() {
     return [
@@ -44,7 +45,10 @@ function TeamContent() {
 
     const fetchTeamMembers = async () => {
         try {
-            const token = localStorage.getItem('access_token');
+            const token = tokenStorage.getAccessToken();
+            if (!token) {
+                return;
+            }
             const response = await fetch('/api/users/', {
                 headers: {
                     'Authorization': `Bearer ${token}`,

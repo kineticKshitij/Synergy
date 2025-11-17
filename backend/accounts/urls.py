@@ -1,5 +1,4 @@
 from django.urls import path
-from rest_framework_simplejwt.views import TokenRefreshView
 from .views import (
     RegisterView, 
     CustomLoginView, 
@@ -15,7 +14,8 @@ from .views import (
     MyUserProfileDetailView,
     TeamMemberListView,
     SendOTPView,
-    VerifyOTPView
+    VerifyOTPView,
+    CookieTokenRefreshView,
 )
 
 urlpatterns = [
@@ -23,7 +23,7 @@ urlpatterns = [
     path('register/', RegisterView.as_view(), name='register'),
     path('login/', CustomLoginView.as_view(), name='login'),
     path('logout/', LogoutView.as_view(), name='logout'),
-    path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('token/refresh/', CookieTokenRefreshView.as_view(), name='token_refresh'),
     
     # 2FA/OTP
     path('send-otp/', SendOTPView.as_view(), name='send_otp'),

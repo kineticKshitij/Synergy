@@ -8,6 +8,7 @@ import authService from '~/services/auth.service';
 import type { DashboardStats } from '~/services/auth.service';
 import { projectService, type Project } from '~/services/project.service';
 import type { TaskAttachment } from '~/services/attachment.service';
+import tokenStorage from '~/services/tokenStorage';
 import {
     LayoutDashboard,
     Users,
@@ -74,21 +75,24 @@ function DashboardContent() {
                 setOngoingProjects(projectsData.slice(0, 4)); // Show max 4 projects
                 
                 // Fetch recent proof uploads
-                const response = await fetch('/api/attachments/?is_proof_of_completion=true', {
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-                        'Content-Type': 'application/json',
-                    },
-                });
-                if (response.ok) {
-                    const proofsData = await response.json();
-                    // Get recent proofs from last 7 days
-                    const weekAgo = new Date();
-                    weekAgo.setDate(weekAgo.getDate() - 7);
-                    const recent = proofsData.filter((p: TaskAttachment) => 
-                        new Date(p.created_at) > weekAgo
-                    ).slice(0, 3);
-                    setRecentProofs(recent);
+                const token = tokenStorage.getAccessToken();
+                if (token) {
+                    const response = await fetch('/api/attachments/?is_proof_of_completion=true', {
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json',
+                        },
+                    });
+                    if (response.ok) {
+                        const proofsData = await response.json();
+                        // Get recent proofs from last 7 days
+                        const weekAgo = new Date();
+                        weekAgo.setDate(weekAgo.getDate() - 7);
+                        const recent = proofsData.filter((p: TaskAttachment) => 
+                            new Date(p.created_at) > weekAgo
+                        ).slice(0, 3);
+                        setRecentProofs(recent);
+                    }
                 }
                 
                 setLastFetch(Date.now());

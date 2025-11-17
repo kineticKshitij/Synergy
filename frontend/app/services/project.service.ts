@@ -1,3 +1,5 @@
+import tokenStorage from './tokenStorage';
+
 // Use relative URL to go through nginx proxy
 const API_URL = '/api';
 
@@ -35,9 +37,13 @@ export interface Task {
 }
 
 export const projectService = {
-    // Get auth token from localStorage
+    // Get auth token from secure storage
     getAuthToken() {
-        return localStorage.getItem('access_token');
+        const token = tokenStorage.getAccessToken();
+        if (!token) {
+            throw new Error('Missing access token');
+        }
+        return token;
     },
 
     // Get all projects

@@ -1,4 +1,5 @@
 import axios from 'axios';
+import tokenStorage from './tokenStorage';
 
 const API_URL = '/api/';
 
@@ -7,13 +8,15 @@ const api = axios.create({
     headers: {
         'Content-Type': 'application/json',
     },
+    withCredentials: true,
 });
 
 // Add auth token to requests
 api.interceptors.request.use(
     (config) => {
-        const token = localStorage.getItem('access_token');
+        const token = tokenStorage.getAccessToken();
         if (token) {
+            config.headers = config.headers ?? {};
             config.headers.Authorization = `Bearer ${token}`;
         }
         return config;

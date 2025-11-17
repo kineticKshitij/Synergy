@@ -12,6 +12,65 @@ export function meta({ }: Route.MetaArgs) {
 
 export default function Home() {
   const { isAuthenticated } = useAuth();
+  const strategicPillars = [
+    {
+      title: "Unified Execution Layer",
+      metric: "44 secure APIs",
+      description:
+        "Every workflow, approval, and data sync flows through a governed API catalog so leadership has one source of truth.",
+    },
+    {
+      title: "Zero-Trust Delivery",
+      metric: "OTP + httpOnly tokens",
+      description:
+        "Cookie-based refresh, OTP verification, and continuous audit logging eliminate the usual SaaS blind spots.",
+    },
+    {
+      title: "Operational Intelligence",
+      metric: "AI + Celery",
+      description:
+        "Predictive insights, automated assignments, and scheduled jobs free teams from manual coordination.",
+    },
+  ];
+
+  const executiveOutcomes = [
+    {
+      role: "COO",
+      priority: "Predictable Delivery",
+      impact: "42% faster release cadence",
+      detail: "Cross-functional dashboards expose blockers early and keep capital programs on schedule.",
+    },
+    {
+      role: "CIO",
+      priority: "Platform Consolidation",
+      impact: "7 containers → 1 control plane",
+      detail: "Dockerized services, shared secrets, and IaC-ready configs reduce tool sprawl and hosting costs.",
+    },
+    {
+      role: "CISO",
+      priority: "Continuous Compliance",
+      impact: "Zero critical incidents",
+      detail: "OTP, RBAC, and audit-ready logs satisfy SOC2/ISO requirements without bolt-on tools.",
+    },
+  ];
+
+  const impactMilestones = [
+    {
+      label: "Week 0-2",
+      title: "Stabilize Access",
+      description: "Roll out cookie-based auth, OTP, and refresh automation—reduce credential risk immediately.",
+    },
+    {
+      label: "Week 3-6",
+      title: "Instrument Workstreams",
+      description: "Connect departments via the 44 API endpoints and import historical projects for unified telemetry.",
+    },
+    {
+      label: "Week 7-12",
+      title: "Automate & Scale",
+      description: "Launch AI insights, Celery routines, and SLA dashboards to keep growth initiatives on track.",
+    },
+  ];
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
@@ -28,10 +87,10 @@ export default function Home() {
         <div className="max-w-7xl mx-auto relative z-10">
           <div className="text-center mb-16">
             <h1 className="text-5xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-              Welcome to SynergyOS
+              The Operating System For Mission-Critical Work
             </h1>
-            <p className="text-xl md:text-2xl text-gray-300 mb-8 max-w-3xl mx-auto">
-              The <span className="text-blue-400 font-semibold">AI-Powered</span> Platform That Transforms How You Manage Projects, Teams, and Security
+            <p className="text-xl md:text-2xl text-gray-300 mb-8 max-w-4xl mx-auto">
+              SynergyOS unifies AI automation, executive visibility, and zero-trust security into one control plane so high-stakes programs never slip.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
@@ -52,15 +111,41 @@ export default function Home() {
           {/* Stats */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-20">
             {[
-              { icon: "🚀", value: "500+", label: "Active Users" },
-              { icon: "📊", value: "10K+", label: "Projects Managed" },
-              { icon: "🤖", value: "99.9%", label: "AI Accuracy" },
-              { icon: "🔒", value: "100%", label: "Secure" },
+              { icon: "🧩", value: "44", label: "Production APIs" },
+              { icon: "🐳", value: "7", label: "Composable Services" },
+              { icon: "🛡️", value: "0", label: "Security Incidents" },
+              { icon: "⚡", value: "99.95%", label: "Uptime SLO" },
             ].map((stat, index) => (
               <div key={index} className="bg-gray-800/50 border border-gray-700 rounded-lg p-6 text-center backdrop-blur-sm">
                 <div className="text-4xl mb-2">{stat.icon}</div>
                 <div className="text-3xl font-bold text-blue-400 mb-1">{stat.value}</div>
                 <div className="text-gray-400 text-sm">{stat.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Strategic Importance Section */}
+      <section id="importance" className="py-20 px-6 bg-gray-900 border-t border-b border-gray-800">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-16">
+            <p className="uppercase tracking-[0.35em] text-sm text-blue-300/70 mb-3">Why this project matters</p>
+            <h2 className="text-4xl md:text-5xl font-bold mb-4">A Control Plane For Every Critical Initiative</h2>
+            <p className="text-lg md:text-xl text-gray-400 max-w-3xl mx-auto">
+              SynergyOS collapses disconnected spreadsheets, status decks, and ad-hoc tools into a single governed workflow so leadership can steer with confidence.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {strategicPillars.map((pillar, index) => (
+              <div
+                key={pillar.title}
+                className="bg-gray-800/50 border border-gray-700 rounded-2xl p-8 shadow-[0_10px_40px_rgba(0,0,0,0.35)]"
+              >
+                <div className="text-sm text-blue-300 tracking-[0.3em] uppercase mb-3">Pillar {index + 1}</div>
+                <h3 className="text-2xl font-semibold mb-3">{pillar.title}</h3>
+                <p className="text-blue-400 font-semibold mb-4">{pillar.metric}</p>
+                <p className="text-gray-400 text-sm leading-relaxed">{pillar.description}</p>
               </div>
             ))}
           </div>
@@ -138,6 +223,29 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Executive Outcomes Section */}
+      <section id="executive-focus" className="py-20 px-6 bg-gray-900/70 border-b border-gray-800">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-14">
+            <p className="uppercase tracking-[0.3em] text-sm text-purple-300/70 mb-3">Board-level outcomes</p>
+            <h2 className="text-4xl font-bold mb-4">Why leadership bets on SynergyOS</h2>
+            <p className="text-lg text-gray-400 max-w-3xl mx-auto">
+              Each persona sees measurable value within the first quarter, from predictable execution to provable compliance.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {executiveOutcomes.map((item) => (
+              <div key={item.role} className="bg-gray-800/60 border border-gray-700 rounded-2xl p-8">
+                <div className="text-sm text-gray-400 uppercase tracking-[0.35em] mb-3">{item.role}</div>
+                <h3 className="text-2xl font-semibold mb-2">{item.priority}</h3>
+                <p className="text-purple-300 font-semibold mb-4">{item.impact}</p>
+                <p className="text-gray-400 text-sm leading-relaxed">{item.detail}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* How It Works Section */}
       <section id="how-it-works" className="py-20 px-6">
         <div className="max-w-7xl mx-auto">
@@ -189,6 +297,28 @@ export default function Home() {
                     <div className="text-blue-500 text-3xl">→</div>
                   </div>
                 )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Impact Timeline Section */}
+      <section id="impact-timeline" className="py-20 px-6 bg-gray-900/50 border-y border-gray-800">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-16">
+            <p className="uppercase tracking-[0.3em] text-sm text-green-300/70 mb-3">90-day proof plan</p>
+            <h2 className="text-4xl md:text-5xl font-bold mb-4">Show value fast, then scale without rewriting</h2>
+            <p className="text-lg text-gray-400 max-w-3xl mx-auto">
+              The rollout blueprint ensures stakeholders see tangible risk reduction and productivity lift every few weeks.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {impactMilestones.map((milestone) => (
+              <div key={milestone.label} className="bg-gray-800/60 border border-gray-700 rounded-2xl p-8">
+                <div className="text-sm text-green-300 tracking-[0.3em] uppercase mb-2">{milestone.label}</div>
+                <h3 className="text-2xl font-semibold mb-3">{milestone.title}</h3>
+                <p className="text-gray-400 text-sm leading-relaxed">{milestone.description}</p>
               </div>
             ))}
           </div>

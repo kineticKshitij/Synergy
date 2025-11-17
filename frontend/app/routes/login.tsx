@@ -31,46 +31,17 @@ export default function Login() {
         try {
             // If 2FA is enabled and OTP not sent yet, request OTP
             if (use2FA && !otpSent) {
-                // Send OTP request
-                const token = localStorage.getItem('access_token');
-                const response = await fetch('/api/auth/send-otp/', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ username, password }),
-                });
-
-                if (response.ok) {
-                    setOtpSent(true);
-                    setError('');
-                    alert('OTP sent to your registered email/phone');
-                } else {
-                    const data = await response.json();
-                    setError(data.detail || 'Failed to send OTP');
-                }
+                await authService.sendOTP(username, password);
+                setOtpSent(true);
+                setError('');
+                alert('OTP sent to your registered email/phone');
                 setIsLoading(false);
                 return;
             }
 
             // If 2FA is enabled and OTP is sent, verify OTP
             if (use2FA && otpSent) {
-                const response = await fetch('/api/auth/verify-otp/', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ username, password, otp }),
-                });
-
-                if (!response.ok) {
-                    const data = await response.json();
-                    throw new Error(data.detail || 'Invalid OTP');
-                }
-                
-                const data = await response.json();
-                localStorage.setItem('access_token', data.access);
-                localStorage.setItem('refresh_token', data.refresh);
+                await authService.verifyOTP(username, otp);
             } else {
                 // Normal login without 2FA
                 await login(username, password);
@@ -86,7 +57,8 @@ export default function Login() {
                 navigate('/team-dashboard');
             }
         } catch (err: any) {
-            setError(err.response?.data?.detail || err.message || 'Invalid username or password');
+            const detail = err.response?.data?.detail || err.response?.data?.error;
+            setError(detail || err.message || 'Invalid username or password');
         } finally {
             setIsLoading(false);
         }

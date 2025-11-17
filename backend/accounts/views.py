@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.tokens import default_token_generator
@@ -27,6 +27,47 @@ from .serializers import (
 from .models import SecurityEvent, UserProfile
 from .utils import create_invited_user, send_invitation_email
 from rest_framework import generics
+
+
+REFRESH_COOKIE_NAME = getattr(settings, 'REFRESH_TOKEN_COOKIE_NAME', 'synergy_refresh_token')
+REFRESH_COOKIE_PATH = getattr(settings, 'REFRESH_TOKEN_COOKIE_PATH', '/api/auth/')
+REFRESH_COOKIE_SECURE = getattr(settings, 'REFRESH_TOKEN_COOKIE_SECURE', not settings.DEBUG)
+REFRESH_COOKIE_SAMESITE = getattr(settings, 'REFRESH_TOKEN_COOKIE_SAMESITE', 'Lax')
+REFRESH_COOKIE_DOMAIN = getattr(settings, 'REFRESH_TOKEN_COOKIE_DOMAIN', '') or None
+
+
+def set_refresh_cookie(response, refresh_token: str):
+    """Attach the refresh token as an httpOnly cookie."""
+    max_age = int(settings.SIMPLE_JWT.get('REFRESH_TOKEN_LIFETIME').total_seconds())
+    response.set_cookie(
+        REFRESH_COOKIE_NAME,
+        refresh_token,
+        max_age=max_age,
+        httponly=True,
+        secure=REFRESH_COOKIE_SECURE,
+        samesite=REFRESH_COOKIE_SAMESITE,
+        path=REFRESH_COOKIE_PATH,
+        domain=REFRESH_COOKIE_DOMAIN,
+    )
+
+
+def clear_refresh_cookie(response):
+    """Remove the refresh token cookie from the client."""
+    response.delete_cookie(
+        REFRESH_COOKIE_NAME,
+        path=REFRESH_COOKIE_PATH,
+        domain=REFRESH_COOKIE_DOMAIN,
+    )
+
+
+def get_refresh_token_from_request(request):
+    """Fetch refresh token from request body payload or fallback cookie."""
+    token = None
+    try:
+        token = request.data.get('refresh')
+    except Exception:
+        token = None
+    return token or request.COOKIES.get(REFRESH_COOKIE_NAME)
 
 
 # Custom login view with rate limiting
@@ -67,6 +108,12 @@ class CustomLoginView(TokenObtainPairView):
             except Exception:
                 pass
         
+        if response.status_code == status.HTTP_200_OK:
+            refresh_token = response.data.get('refresh') if isinstance(response.data, dict) else None
+            if refresh_token:
+                set_refresh_cookie(response, refresh_token)
+                response.data.pop('refresh', None)
+        
         return response
 
 
@@ -96,7 +143,7 @@ class RegisterView(generics.CreateAPIView):
         except Exception:
             pass
 
-        return Response({
+        response = Response({
             'user': UserSerializer(user).data,
             'tokens': {
                 'refresh': str(refresh),
@@ -105,31 +152,45 @@ class RegisterView(generics.CreateAPIView):
             'message': 'User registered successfully'
         }, status=status.HTTP_201_CREATED)
 
+        tokens = response.data.get('tokens', {})
+        refresh_token = tokens.pop('refresh', None)
+        if refresh_token:
+            set_refresh_cookie(response, refresh_token)
+
+        return response
+
 
 @method_decorator(ratelimit(key='user', rate='10/m', method='POST'), name='dispatch')
 class LogoutView(APIView):
     permission_classes = (IsAuthenticated,)
 
     def post(self, request):
-        try:
-            refresh_token = request.data["refresh"]
-            token = RefreshToken(refresh_token)
-            token.blacklist()
-            # Log logout
-            try:
-                SecurityEvent.objects.create(
-                    event_type='logout',
-                    user=request.user if request.user.is_authenticated else None,
-                    username=request.user.username if request.user and request.user.is_authenticated else '',
-                    ip_address=get_client_ip(request),
-                    description='User logged out'
-                )
-            except Exception:
-                pass
+        refresh_token = get_refresh_token_from_request(request)
 
-            return Response({"message": "Logout successful"}, status=status.HTTP_200_OK)
-        except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        if refresh_token:
+            try:
+                token = RefreshToken(refresh_token)
+                token.blacklist()
+            except Exception as e:
+                response = Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+                clear_refresh_cookie(response)
+                return response
+
+        # Log logout event regardless of refresh token state
+        try:
+            SecurityEvent.objects.create(
+                event_type='logout',
+                user=request.user if request.user.is_authenticated else None,
+                username=request.user.username if request.user and request.user.is_authenticated else '',
+                ip_address=get_client_ip(request),
+                description='User logged out'
+            )
+        except Exception:
+            pass
+
+        response = Response({"message": "Logout successful"}, status=status.HTTP_200_OK)
+        clear_refresh_cookie(response)
+        return response
 
 
 class UserProfileView(generics.RetrieveUpdateAPIView):
@@ -958,7 +1019,7 @@ class VerifyOTPView(APIView):
                 except Exception:
                     pass
                 
-                return Response({
+                response = Response({
                     'message': 'Login successful',
                     'user': UserSerializer(user).data,
                     'tokens': {
@@ -966,6 +1027,13 @@ class VerifyOTPView(APIView):
                         'access': str(refresh.access_token),
                     }
                 }, status=status.HTTP_200_OK)
+
+                tokens = response.data.get('tokens', {})
+                refresh_token = tokens.pop('refresh', None)
+                if refresh_token:
+                    set_refresh_cookie(response, refresh_token)
+
+                return response
             else:
                 # Increment failed attempts
                 profile.otp_attempts += 1
@@ -994,3 +1062,26 @@ class VerifyOTPView(APIView):
                 {'error': 'Invalid credentials'},
                 status=status.HTTP_401_UNAUTHORIZED
             )
+
+
+class CookieTokenRefreshView(TokenRefreshView):
+    permission_classes = (AllowAny,)
+
+    def post(self, request, *args, **kwargs):
+        refresh_token = get_refresh_token_from_request(request)
+        if not refresh_token:
+            return Response(
+                {'detail': 'Refresh token missing'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        serializer = self.get_serializer(data={'refresh': refresh_token})
+        serializer.is_valid(raise_exception=True)
+        data = dict(serializer.validated_data)
+
+        response = Response(data, status=status.HTTP_200_OK)
+        new_refresh = data.pop('refresh', None)
+        if new_refresh:
+            set_refresh_cookie(response, new_refresh)
+
+        return response

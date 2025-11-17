@@ -1,3 +1,5 @@
+import tokenStorage from './tokenStorage';
+
 /**
  * Attachment Service
  * Handles file uploads for tasks
@@ -25,11 +27,10 @@ export interface TaskAttachment {
 }
 
 /**
- * Get auth token from localStorage
+ * Get auth token from the secure storage helper
  */
 const getAccessToken = (): string | null => {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem('access_token');
+  return tokenStorage.getAccessToken();
 };
 
 /**
@@ -42,6 +43,9 @@ export const uploadTaskAttachment = async (
   isProof: boolean = false
 ): Promise<TaskAttachment> => {
   const token = getAccessToken();
+  if (!token) {
+    throw new Error('Missing access token');
+  }
   
   // Validate file size (50MB max)
   const maxSize = 50 * 1024 * 1024; // 50MB in bytes
@@ -78,6 +82,9 @@ export const uploadTaskAttachment = async (
  */
 export const getTaskAttachments = async (taskId: number): Promise<TaskAttachment[]> => {
   const token = getAccessToken();
+  if (!token) {
+    throw new Error('Missing access token');
+  }
 
   const response = await fetch(`/api/attachments/by_task/?task_id=${taskId}`, {
     method: 'GET',
@@ -99,6 +106,9 @@ export const getTaskAttachments = async (taskId: number): Promise<TaskAttachment
  */
 export const getTaskProofFiles = async (taskId: number): Promise<TaskAttachment[]> => {
   const token = getAccessToken();
+  if (!token) {
+    throw new Error('Missing access token');
+  }
 
   const response = await fetch(`/api/attachments/proof_of_completion/?task_id=${taskId}`, {
     method: 'GET',
@@ -120,6 +130,9 @@ export const getTaskProofFiles = async (taskId: number): Promise<TaskAttachment[
  */
 export const deleteAttachment = async (attachmentId: number): Promise<void> => {
   const token = getAccessToken();
+  if (!token) {
+    throw new Error('Missing access token');
+  }
 
   const response = await fetch(`/api/attachments/${attachmentId}/`, {
     method: 'DELETE',
@@ -138,6 +151,9 @@ export const deleteAttachment = async (attachmentId: number): Promise<void> => {
  */
 export const getAllAttachments = async (): Promise<TaskAttachment[]> => {
   const token = getAccessToken();
+  if (!token) {
+    throw new Error('Missing access token');
+  }
 
   const response = await fetch('/api/attachments/', {
     method: 'GET',

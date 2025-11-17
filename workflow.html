@@ -648,9 +648,9 @@
     <div class="container">
         <header>
             <h1>🚀 Synergy Project Management System</h1>
-            <p class="subtitle">Complete Workflow Architecture & Feature Overview</p>
+            <p class="subtitle">Complete Project Overview · Architecture · Deployment Workflow</p>
             <p style="color: #28a745; font-weight: 600; margin-top: 10px;">
-                ✅ Last Updated: November 13, 2025 | 100+ Features Active | Local Network Ready
+                ✅ Last Updated: November 13, 2025 | 100+ Features Active | 44 REST APIs | Docker Stack Ready
             </p>
         </header>
 
@@ -708,6 +708,68 @@
     <script>
         // Workflow data structure
         const workflowData = {
+            overview: {
+                title: '🌐 Project Overview',
+                icon: '🌐',
+                items: [
+                    {
+                        id: 'summary',
+                        title: 'Platform Snapshot',
+                        description: 'SynergyOS unifies project, task, AI, and security tooling into a single workspace.',
+                        status: 'active',
+                        details: {
+                            Release: 'v1.2 (November 2025)',
+                            Modules: ['Authentication', 'Projects', 'Webhooks', 'AI insights', 'Team dashboards'],
+                            Highlights: ['JWT + OTP login', 'AI copilots', 'Webhook automation', 'Role-based UX']
+                        }
+                    },
+                    {
+                        id: 'techstack',
+                        title: 'Technology Stack',
+                        description: 'Django REST backend, React Router v7 frontend, PostgreSQL, Redis, Celery, and Nginx.',
+                        status: 'active',
+                        details: {
+                            Backend: 'Django 5.2.7 + DRF + SimpleJWT',
+                            Frontend: 'React 19 + React Router 7 + Tailwind',
+                            Infrastructure: ['PostgreSQL 16', 'Redis 7', 'Celery 5', 'Docker Compose v2']
+                        }
+                    },
+                    {
+                        id: 'deployment',
+                        title: 'Deployment Flow',
+                        description: '7-container Docker stack with automated migrations and workers.',
+                        status: 'active',
+                        details: {
+                            Build: 'docker compose build backend frontend',
+                            Test: 'docker compose run --rm backend sh -c "python manage.py migrate && python manage.py test accounts"',
+                            Launch: 'docker compose up -d db redis backend celery_worker celery_beat frontend nginx'
+                        }
+                    },
+                    {
+                        id: 'apiMatrix',
+                        title: 'API Coverage',
+                        description: '44 working REST endpoints across auth, projects, AI, and webhooks.',
+                        status: 'active',
+                        details: {
+                            Auth: 16,
+                            Projects: 24,
+                            Webhooks: 4,
+                            Notes: 'Additional custom DRF actions cover dashboards, uploads, and AI helpers.'
+                        }
+                    },
+                    {
+                        id: 'serviceMap',
+                        title: 'Service Responsibilities',
+                        description: 'Clear separation of synchronous APIs, async workers, and observability hooks.',
+                        status: 'active',
+                        details: {
+                            Backend: ['REST APIs', 'OTP + security logging', 'Webhook dispatch'],
+                            Celery: ['AI processing', 'Notifications', 'Cleanup jobs'],
+                            Frontend: ['Dashboard UX', 'Team workflows', 'AI assistant UI']
+                        }
+                    }
+                ]
+            },
             infrastructure: {
                 title: '🏗️ Infrastructure Layer',
                 icon: '🏗️',
@@ -960,7 +1022,7 @@
         const stats = {
             totalFeatures: 100,
             activeServices: 7,
-            apiEndpoints: 52,
+            apiEndpoints: 44,
             webhookEvents: 12
         };
 
@@ -1170,6 +1232,23 @@
                     <li><strong>Demo Account:</strong> username: demo, password: demo123</li>
                     <li><strong>Admin Accounts:</strong> root, admin, KKKM</li>
                     <li><strong>Test Users:</strong> marotkarkshitij21, marotkarkshitijli2024</li>
+                </ul>
+                <h3 style="margin-top: 20px; color: #667eea;">Deployment Overview</h3>
+                <div class="code-block">
+# Build latest images
+docker compose build backend frontend
+
+# Run migrations + smoke tests
+docker compose run --rm backend sh -c "python manage.py migrate && python manage.py test accounts"
+
+# Launch the full stack
+docker compose up -d db redis backend celery_worker celery_beat frontend nginx
+                </div>
+                <ul class="feature-list">
+                    <li><strong>Services:</strong> 7 containers (db, redis, backend, celery worker, celery beat, frontend, nginx)</li>
+                    <li><strong>Observability:</strong> docker compose logs -f backend|nginx for live diagnostics</li>
+                    <li><strong>Teardown:</strong> docker compose down (add -v to drop volumes)</li>
+                    <li><strong>CI/CD:</strong> GitHub Actions mirrors the same compose commands</li>
                 </ul>
                 <h3 style="margin-top: 20px; color: #667eea;">Network Configuration</h3>
                 <ul class="feature-list">
