@@ -233,6 +233,77 @@ class TaskViewSet(viewsets.ModelViewSet):
         
         serializer = CommentSerializer(comment)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+    @action(detail=False, methods=['post'])
+    def bulk_update(self, request):
+        """Bulk update multiple tasks at once"""
+        task_ids = request.data.get('task_ids', [])
+        updates = request.data.get('updates', {})
+        
+        if not task_ids:
+            return Response(
+                {'error': 'task_ids is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if not updates:
+            return Response(
+                {'error': 'updates is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Get tasks user has access to
+        user = request.user
+        tasks = Task.objects.filter(
+            id__in=task_ids
+        ).filter(
+            models.Q(project__owner=user) | models.Q(project__team_members=user)
+        ).distinct()
+        
+        if not tasks.exists():
+            return Response(
+                {'error': 'No accessible tasks found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Validate permissions
+        allowed_fields = {'status', 'priority', 'assigned_to_id', 'due_date'}
+        update_fields = set(updates.keys())
+        
+        if not update_fields.issubset(allowed_fields):
+            return Response(
+                {'error': f'Can only bulk update: {", ".join(allowed_fields)}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Check ownership for non-status fields
+        if update_fields - {'status'} and not all(task.project.owner == user for task in tasks):
+            return Response(
+                {'error': 'Only project owner can update fields other than status'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Perform bulk update
+        updated_count = 0
+        for task in tasks:
+            for field, value in updates.items():
+                setattr(task, field, value)
+            task.save()
+            updated_count += 1
+            
+            # Log activity
+            ProjectActivity.objects.create(
+                project=task.project,
+                user=user,
+                action='task_updated',
+                description=f'Bulk updated task: {task.title}'
+            )
+        
+        return Response({
+            'success': True,
+            'updated_count': updated_count,
+            'message': f'Successfully updated {updated_count} task(s)'
+        })
 
 
 class ProjectActivityViewSet(viewsets.ReadOnlyModelViewSet):

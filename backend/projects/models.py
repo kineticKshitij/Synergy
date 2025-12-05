@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
+from datetime import timedelta
 
 
 class Project(models.Model):
@@ -406,3 +407,90 @@ class MilestoneTemplate(models.Model):
     
     def __str__(self):
         return f"{self.project_template.name} - {self.name}"
+
+
+class RecurringTask(models.Model):
+    """Recurring task template that auto-creates tasks on schedule"""
+    
+    FREQUENCY_CHOICES = [
+        ('daily', 'Daily'),
+        ('weekly', 'Weekly'),
+        ('biweekly', 'Bi-weekly'),
+        ('monthly', 'Monthly'),
+        ('quarterly', 'Quarterly'),
+    ]
+    
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='recurring_tasks')
+    title = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    frequency = models.CharField(max_length=20, choices=FREQUENCY_CHOICES)
+    priority = models.CharField(max_length=20, choices=Task.PRIORITY_CHOICES, default='medium')
+    assigned_to = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True,
+                                    related_name='recurring_tasks')
+    estimated_hours = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    impact = models.IntegerField(default=1, help_text="Impact on project progress (1-10)")
+    
+    is_active = models.BooleanField(default=True)
+    start_date = models.DateField(default=timezone.now)
+    end_date = models.DateField(null=True, blank=True, help_text="Optional end date for recurring task")
+    last_created = models.DateTimeField(null=True, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_recurring_tasks')
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.title} ({self.frequency})"
+    
+    def should_create_task(self):
+        """Check if it's time to create a new task instance"""
+        if not self.is_active:
+            return False
+        
+        # Check if end date has passed
+        if self.end_date and timezone.now().date() > self.end_date:
+            return False
+        
+        # If never created, create now
+        if not self.last_created:
+            return True
+        
+        # Calculate next due date based on frequency
+        from datetime import timedelta
+        last_date = self.last_created.date()
+        today = timezone.now().date()
+        
+        if self.frequency == 'daily':
+            return (today - last_date).days >= 1
+        elif self.frequency == 'weekly':
+            return (today - last_date).days >= 7
+        elif self.frequency == 'biweekly':
+            return (today - last_date).days >= 14
+        elif self.frequency == 'monthly':
+            return (today - last_date).days >= 30
+        elif self.frequency == 'quarterly':
+            return (today - last_date).days >= 90
+        
+        return False
+    
+    def create_task_instance(self):
+        """Create a new task instance from this recurring task"""
+        task = Task.objects.create(
+            project=self.project,
+            title=self.title,
+            description=self.description,
+            status='pending',
+            priority=self.priority,
+            assigned_to=self.assigned_to,
+            estimated_hours=self.estimated_hours,
+            impact=self.impact,
+            due_date=timezone.now().date() + timedelta(days=7)  # Default 7 days from creation
+        )
+        
+        self.last_created = timezone.now()
+        self.save()
+        
+        return task

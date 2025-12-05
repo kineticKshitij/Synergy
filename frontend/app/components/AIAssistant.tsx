@@ -187,7 +187,7 @@ export function AIAssistant({ projectId }: AIAssistantProps) {
                             className={`max-w-[80%] rounded-2xl p-3 ${
                                 message.type === 'user'
                                     ? 'bg-gradient-to-br from-purple-500 to-blue-500 text-white rounded-br-sm'
-                                    : 'bg-white border border-slate-200 text-slate-700 rounded-bl-sm shadow-sm'
+                                    : 'bg-white border border-slate-200 text-slate-900 rounded-bl-sm shadow-sm'
                             }`}
                         >
                             {message.type === 'ai' && (
@@ -196,7 +196,7 @@ export function AIAssistant({ projectId }: AIAssistantProps) {
                                     <span className="text-xs font-medium text-slate-500">AI Assistant</span>
                                 </div>
                             )}
-                            <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                            <p className="text-sm whitespace-pre-wrap text-black">{message.content}</p>
                             <p className={`text-xs mt-1 ${message.type === 'user' ? 'text-purple-100' : 'text-slate-400'}`}>
                                 {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </p>
@@ -225,7 +225,7 @@ export function AIAssistant({ projectId }: AIAssistantProps) {
                         onKeyPress={handleKeyPress}
                         placeholder="Ask me anything..."
                         disabled={isProcessing}
-                        className="flex-1 px-4 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 disabled:bg-slate-50 disabled:text-slate-400"
+                        className="flex-1 px-4 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 disabled:bg-slate-50 disabled:text-slate-400 text-slate-900"
                     />
                     <button
                         onClick={handleSend}

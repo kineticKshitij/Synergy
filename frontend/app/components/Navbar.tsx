@@ -2,6 +2,7 @@ import { Link, useLocation } from 'react-router';
 import { useState, useEffect } from 'react';
 import { useAuth } from '~/contexts/AuthContext';
 import { NotificationCenter } from '~/components/NotificationCenter';
+import { ThemeToggle } from '~/components/ThemeToggle';
 import { Menu, X, User, Settings, LogOut } from 'lucide-react';
 
 export function Navbar() {
@@ -139,6 +140,9 @@ export function Navbar() {
 
                                 {/* Notification Center */}
                                 <NotificationCenter />
+
+                                {/* Theme Toggle */}
+                                <ThemeToggle />
 
                                 {/* User Menu */}
                                 <div className="relative">

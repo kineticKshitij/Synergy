@@ -375,6 +375,29 @@ export const projectService = {
 
         return response.json();
     },
+
+    // Bulk update tasks
+    async bulkUpdateTasks(taskIds: number[], updates: Partial<Task>) {
+        const token = this.getAuthToken();
+
+        const response = await fetch(`${API_URL}/tasks/bulk_update/`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                task_ids: taskIds,
+                updates: updates,
+            }),
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to bulk update tasks');
+        }
+
+        return response.json();
+    },
 };
 
 // Export convenience functions
