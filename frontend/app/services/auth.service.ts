@@ -91,6 +91,7 @@ export interface RegisterData {
     password2: string;
     first_name: string;
     last_name: string;
+    role: 'manager' | 'member';
 }
 
 export interface RegisterResponse {

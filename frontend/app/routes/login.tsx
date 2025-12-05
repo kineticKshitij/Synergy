@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Form, useNavigate, Link } from 'react-router';
 import { useAuth } from '~/contexts/AuthContext';
 import authService from '~/services/auth.service';
@@ -14,7 +14,7 @@ export function meta({ }: Route.MetaArgs) {
 
 export default function Login() {
     const navigate = useNavigate();
-    const { login } = useAuth();
+    const { login, isAuthenticated, isLoading: authLoading, user } = useAuth();
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [otp, setOtp] = useState('');
@@ -22,6 +22,18 @@ export default function Login() {
     const [isLoading, setIsLoading] = useState(false);
     const [use2FA, setUse2FA] = useState(false);
     const [otpSent, setOtpSent] = useState(false);
+
+    useEffect(() => {
+        if (authLoading) return;
+        if (isAuthenticated) {
+            const role = user?.role;
+            if (role === 'manager' || role === 'admin') {
+                navigate('/dashboard', { replace: true });
+            } else {
+                navigate('/team-dashboard', { replace: true });
+            }
+        }
+    }, [authLoading, isAuthenticated, user, navigate]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -63,6 +75,14 @@ export default function Login() {
             setIsLoading(false);
         }
     };
+
+    if (authLoading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 px-4">
+                <div className="w-10 h-10 border-3 border-gray-200 border-t-blue-600 rounded-full animate-spin" />
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 px-4">

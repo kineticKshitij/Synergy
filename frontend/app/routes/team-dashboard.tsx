@@ -1,10 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
+import { Navbar } from '~/components/Navbar';
 import { useAuth } from '~/contexts/AuthContext';
 import teamMemberService, { type TeamMemberDashboard } from '~/services/team-member.service';
+import authService from '~/services/auth.service';
 import { 
     Briefcase, CheckCircle, Clock, MessageSquare, 
-    AlertCircle, TrendingUp, Calendar, FileText, Upload, Eye, X, Download 
+    AlertCircle, TrendingUp, Calendar, FileText, Upload, Eye, X, Download,
+    Bell, LogOut, KeyRound, ShieldCheck
 } from 'lucide-react';
 import type { Route } from './+types/team-dashboard';
 
@@ -16,7 +19,7 @@ export function meta({}: Route.MetaArgs) {
 }
 
 export default function TeamDashboard() {
-    const { user } = useAuth();
+    const { user, logout } = useAuth();
     const navigate = useNavigate();
     const [dashboard, setDashboard] = useState<TeamMemberDashboard | null>(null);
     const [loading, setLoading] = useState(true);
@@ -25,10 +28,33 @@ export default function TeamDashboard() {
     const [showUploadModal, setShowUploadModal] = useState(false);
     const [showProofModal, setShowProofModal] = useState(false);
     const [taskProofs, setTaskProofs] = useState<any[]>([]);
+    const [showNotifications, setShowNotifications] = useState(false);
+    const notificationRef = useRef<HTMLDivElement | null>(null);
+    const [passwordForm, setPasswordForm] = useState({
+        current: '',
+        next: '',
+        confirm: '',
+    });
+    const [passwordState, setPasswordState] = useState<{ type: 'idle' | 'success' | 'error'; message?: string }>({ type: 'idle' });
+    const [passwordLoading, setPasswordLoading] = useState(false);
 
     useEffect(() => {
         loadDashboard();
     }, []);
+
+    useEffect(() => {
+        const handleClickAway = (event: MouseEvent) => {
+            if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) {
+                setShowNotifications(false);
+            }
+        };
+
+        if (showNotifications) {
+            window.addEventListener('click', handleClickAway);
+        }
+
+        return () => window.removeEventListener('click', handleClickAway);
+    }, [showNotifications]);
 
     const loadDashboard = async () => {
         try {
@@ -80,15 +106,46 @@ export default function TeamDashboard() {
         }
     };
 
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center min-h-screen">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-            </div>
-        );
-    }
+    const handleLogout = async () => {
+        await logout();
+        navigate('/login');
+    };
 
-    if (error || !dashboard) {
+    const handlePasswordFieldChange = (field: keyof typeof passwordForm, value: string) => {
+        setPasswordForm((prev) => ({ ...prev, [field]: value }));
+        if (passwordState.type !== 'idle') {
+            setPasswordState({ type: 'idle' });
+        }
+    };
+
+    const handlePasswordSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!passwordForm.current || !passwordForm.next || !passwordForm.confirm) {
+            setPasswordState({ type: 'error', message: 'All fields are required.' });
+            return;
+        }
+        if (passwordForm.next !== passwordForm.confirm) {
+            setPasswordState({ type: 'error', message: 'New passwords do not match.' });
+            return;
+        }
+
+        try {
+            setPasswordLoading(true);
+            await authService.changePassword({
+                old_password: passwordForm.current,
+                new_password: passwordForm.next,
+            });
+            setPasswordState({ type: 'success', message: 'Password updated successfully.' });
+            setPasswordForm({ current: '', next: '', confirm: '' });
+        } catch (err: any) {
+            const message = err?.response?.data?.detail || 'Unable to update password. Please verify your current password.';
+            setPasswordState({ type: 'error', message });
+        } finally {
+            setPasswordLoading(false);
+        }
+    };
+
+    if (error) {
         return (
             <div className="flex items-center justify-center min-h-screen">
                 <div className="text-center">
@@ -108,51 +165,158 @@ export default function TeamDashboard() {
         );
     }
 
-    const { stats, projects, assigned_tasks, recent_messages } = dashboard;
+    const defaultStats = {
+        total_projects: 0,
+        total_tasks: 0,
+        completed_tasks: 0,
+        pending_tasks: 0,
+        unread_messages: 0,
+        completion_rate: 0,
+    };
+
+    const safeStats = dashboard?.stats ?? defaultStats;
+    const projects = dashboard?.projects ?? [];
+    const assigned_tasks = dashboard?.assigned_tasks ?? [];
+    const recent_messages = dashboard?.recent_messages ?? [];
+    const showSkeleton = loading || !dashboard;
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+            <Navbar />
+
             {/* Header */}
-            <div className="bg-white dark:bg-gray-800 shadow">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-                        Team Member Dashboard
-                    </h1>
-                    <p className="text-gray-600 dark:text-gray-400 mt-1">
-                        Welcome back, {user?.first_name || user?.username}!
-                    </p>
+            <div className="bg-white dark:bg-gray-800 shadow pt-24">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-6 space-y-4">
+                    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                        <div>
+                            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+                                Team Member Dashboard
+                            </h1>
+                            <p className="text-gray-600 dark:text-gray-400 mt-1">
+                                Welcome back, {user?.first_name || user?.username}!
+                            </p>
+                        </div>
+                        <div className="flex items-center gap-3" ref={notificationRef}>
+                            <button
+                                type="button"
+                                onClick={() => setShowNotifications((prev) => !prev)}
+                                className="relative px-4 py-2 rounded-full border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 flex items-center gap-2 bg-white/70 dark:bg-gray-800/60"
+                            >
+                                <Bell className="w-5 h-5" />
+                                Notifications
+                                {safeStats.unread_messages > 0 && (
+                                    <span className="absolute -top-2 -right-1 px-1.5 py-0.5 text-xs font-semibold bg-red-600 text-white rounded-full">
+                                        {safeStats.unread_messages}
+                                    </span>
+                                )}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleLogout}
+                                className="px-4 py-2 rounded-full bg-blue-600 text-white hover:bg-blue-700 flex items-center gap-2"
+                            >
+                                <LogOut className="w-5 h-5" />
+                                Logout
+                            </button>
+
+                            {showNotifications && (
+                                <div className="absolute right-4 top-24 w-full max-w-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-2xl p-4 z-40">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <div>
+                                            <p className="text-sm text-gray-500 dark:text-gray-400">Notifications</p>
+                                            <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                                                Latest updates
+                                            </p>
+                                        </div>
+                                        <span className="px-2 py-0.5 text-xs rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
+                                            {safeStats.unread_messages} new
+                                        </span>
+                                    </div>
+                                    <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+                                        {recent_messages.length === 0 && (
+                                            <p className="text-sm text-gray-500 dark:text-gray-400">You're all caught up!</p>
+                                        )}
+                                        {recent_messages.slice(0, 5).map((message) => (
+                                            <button
+                                                key={message.id}
+                                                onClick={() => {
+                                                    setShowNotifications(false);
+                                                    navigate(`/projects/${message.project}`);
+                                                }}
+                                                className={`w-full text-left p-3 rounded-xl border border-gray-200 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition ${!message.is_read ? 'bg-blue-50 dark:bg-blue-900/10' : 'bg-white dark:bg-gray-800'}`}
+                                            >
+                                                <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                                                    {message.sender.first_name || message.sender.username}
+                                                </p>
+                                                <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2">
+                                                    {message.message}
+                                                </p>
+                                                <span className="text-[11px] text-gray-500 dark:text-gray-500">
+                                                    {new Date(message.created_at).toLocaleTimeString()}
+                                                </span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between bg-gray-50 dark:bg-gray-700/40 border border-gray-200 dark:border-gray-700 rounded-2xl px-4 py-3">
+                        <div>
+                            <p className="text-sm text-gray-600 dark:text-gray-300">Account security</p>
+                            <p className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                                <ShieldCheck className="w-5 h-5 text-green-500" />
+                                MFA protected, last login synced
+                            </p>
+                        </div>
+                        <div className="text-sm text-gray-500 dark:text-gray-300">
+                            Signed in as <span className="font-medium text-gray-900 dark:text-white">{user?.email || user?.username}</span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 {/* Stats Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                    <StatCard
-                        icon={<Briefcase className="w-6 h-6" />}
-                        title="Projects"
-                        value={stats.total_projects}
-                        color="blue"
-                    />
-                    <StatCard
-                        icon={<FileText className="w-6 h-6" />}
-                        title="Total Tasks"
-                        value={stats.total_tasks}
-                        color="purple"
-                    />
-                    <StatCard
-                        icon={<CheckCircle className="w-6 h-6" />}
-                        title="Completed"
-                        value={stats.completed_tasks}
-                        subtitle={`${stats.completion_rate}% completion rate`}
-                        color="green"
-                    />
-                    <StatCard
-                        icon={<MessageSquare className="w-6 h-6" />}
-                        title="Unread Messages"
-                        value={stats.unread_messages}
-                        color="orange"
-                        badge={stats.unread_messages > 0}
-                    />
+                    {showSkeleton ? (
+                        <>
+                            <SkeletonStat />
+                            <SkeletonStat />
+                            <SkeletonStat />
+                            <SkeletonStat />
+                        </>
+                    ) : (
+                        <>
+                            <StatCard
+                                icon={<Briefcase className="w-6 h-6" />}
+                                title="Projects"
+                                value={safeStats.total_projects}
+                                color="blue"
+                            />
+                            <StatCard
+                                icon={<FileText className="w-6 h-6" />}
+                                title="Total Tasks"
+                                value={safeStats.total_tasks}
+                                color="purple"
+                            />
+                            <StatCard
+                                icon={<CheckCircle className="w-6 h-6" />}
+                                title="Completed"
+                                value={safeStats.completed_tasks}
+                                subtitle={`${safeStats.completion_rate}% completion rate`}
+                                color="green"
+                            />
+                            <StatCard
+                                icon={<MessageSquare className="w-6 h-6" />}
+                                title="Unread Messages"
+                                value={safeStats.unread_messages}
+                                color="orange"
+                                badge={safeStats.unread_messages > 0}
+                            />
+                        </>
+                    )}
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -166,7 +330,9 @@ export default function TeamDashboard() {
                                 </h2>
                             </div>
                             <div className="p-6">
-                                {assigned_tasks.length === 0 ? (
+                                {showSkeleton ? (
+                                    <SkeletonTaskList />
+                                ) : assigned_tasks.length === 0 ? (
                                     <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                                         No tasks assigned yet
                                     </div>
@@ -198,7 +364,9 @@ export default function TeamDashboard() {
                                 </h2>
                             </div>
                             <div className="p-6">
-                                {projects.length === 0 ? (
+                                {showSkeleton ? (
+                                    <SkeletonProjectList />
+                                ) : projects.length === 0 ? (
                                     <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                                         No projects yet
                                     </div>
@@ -225,7 +393,9 @@ export default function TeamDashboard() {
                                 </h2>
                             </div>
                             <div className="p-6">
-                                {recent_messages.length === 0 ? (
+                                {showSkeleton ? (
+                                    <SkeletonMessageList />
+                                ) : recent_messages.length === 0 ? (
                                     <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                                         No messages yet
                                     </div>
@@ -240,6 +410,73 @@ export default function TeamDashboard() {
                                         ))}
                                     </div>
                                 )}
+                            </div>
+                        </div>
+
+                        {/* Change Password */}
+                        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md mt-6">
+                            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+                                <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                                    <KeyRound className="w-5 h-5" />
+                                    Change Password
+                                </h2>
+                                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                                    Keep your account secure by updating your password regularly.
+                                </p>
+                            </div>
+                            <div className="p-6">
+                                <form className="space-y-4" onSubmit={handlePasswordSubmit}>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                            Current Password
+                                        </label>
+                                        <input
+                                            type="password"
+                                            value={passwordForm.current}
+                                            onChange={(e) => handlePasswordFieldChange('current', e.target.value)}
+                                            className="input-enhanced w-full"
+                                            placeholder="Enter current password"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                            New Password
+                                        </label>
+                                        <input
+                                            type="password"
+                                            value={passwordForm.next}
+                                            onChange={(e) => handlePasswordFieldChange('next', e.target.value)}
+                                            className="input-enhanced w-full"
+                                            placeholder="Enter new password"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                            Confirm New Password
+                                        </label>
+                                        <input
+                                            type="password"
+                                            value={passwordForm.confirm}
+                                            onChange={(e) => handlePasswordFieldChange('confirm', e.target.value)}
+                                            className="input-enhanced w-full"
+                                            placeholder="Re-enter new password"
+                                        />
+                                    </div>
+
+                                    {passwordState.type !== 'idle' && passwordState.message && (
+                                        <div className={`text-sm rounded-lg px-3 py-2 ${passwordState.type === 'success' ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300' : 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-300'}`}>
+                                            {passwordState.message}
+                                        </div>
+                                    )}
+
+                                    <button
+                                        type="submit"
+                                        className="btn-primary w-full flex items-center justify-center gap-2"
+                                        disabled={passwordLoading}
+                                    >
+                                        {passwordLoading ? 'Updating...' : 'Update Password'}
+                                    </button>
+                                </form>
                             </div>
                         </div>
                     </div>
@@ -276,14 +513,14 @@ export default function TeamDashboard() {
 
 function StatCard({ icon, title, value, subtitle, color, badge }: any) {
     const colors = {
-        blue: 'bg-blue-100 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400',
-        purple: 'bg-purple-100 text-purple-600 dark:bg-purple-900/20 dark:text-purple-400',
-        green: 'bg-green-100 text-green-600 dark:bg-green-900/20 dark:text-green-400',
-        orange: 'bg-orange-100 text-orange-600 dark:bg-orange-900/20 dark:text-orange-400',
+        blue: 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400',
+        purple: 'bg-indigo-50 text-indigo-700 dark:bg-purple-900/20 dark:text-purple-400',
+        green: 'bg-emerald-50 text-emerald-700 dark:bg-green-900/20 dark:text-green-400',
+        orange: 'bg-amber-50 text-amber-700 dark:bg-orange-900/20 dark:text-orange-400',
     };
 
     return (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 relative">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-md p-6 relative border border-gray-100 dark:border-gray-700/60">
             {badge && (
                 <div className="absolute top-4 right-4">
                     <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
@@ -297,6 +534,16 @@ function StatCard({ icon, title, value, subtitle, color, badge }: any) {
             {subtitle && (
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{subtitle}</p>
             )}
+        </div>
+    );
+}
+
+function SkeletonStat() {
+    return (
+        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700/60 p-6 animate-pulse">
+            <div className="h-10 w-10 rounded-lg bg-gray-200 dark:bg-gray-700 mb-4" />
+            <div className="h-3 w-24 bg-gray-200 dark:bg-gray-700 rounded mb-3" />
+            <div className="h-6 w-16 bg-gray-200 dark:bg-gray-700 rounded" />
         </div>
     );
 }
@@ -373,6 +620,21 @@ function TaskCard({ task, onUpload, onView, onViewProof }: any) {
 );
 }
 
+function SkeletonTaskList() {
+    return (
+        <div className="space-y-4 animate-pulse">
+            {[1, 2, 3].map((key) => (
+                <div key={key} className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800">
+                    <div className="h-4 w-32 bg-gray-200 dark:bg-gray-700 rounded mb-3" />
+                    <div className="h-3 w-full bg-gray-200 dark:bg-gray-700 rounded mb-2" />
+                    <div className="h-3 w-2/3 bg-gray-200 dark:bg-gray-700 rounded mb-4" />
+                    <div className="h-3 w-24 bg-gray-200 dark:bg-gray-700 rounded" />
+                </div>
+            ))}
+        </div>
+    );
+}
+
 function ProjectCard({ project, onClick }: any) {
     const priorityColors = {
         low: 'text-gray-600',
@@ -406,6 +668,23 @@ function ProjectCard({ project, onClick }: any) {
     );
 }
 
+function SkeletonProjectList() {
+    return (
+        <div className="space-y-3 animate-pulse">
+            {[1, 2, 3].map((key) => (
+                <div key={key} className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800">
+                    <div className="flex items-center justify-between mb-3">
+                        <div className="h-4 w-28 bg-gray-200 dark:bg-gray-700 rounded" />
+                        <div className="h-3 w-12 bg-gray-200 dark:bg-gray-700 rounded" />
+                    </div>
+                    <div className="h-3 w-full bg-gray-200 dark:bg-gray-700 rounded mb-2" />
+                    <div className="h-3 w-2/3 bg-gray-200 dark:bg-gray-700 rounded" />
+                </div>
+            ))}
+        </div>
+    );
+}
+
 function MessageCard({ message, onClick }: any) {
     return (
         <div 
@@ -426,6 +705,20 @@ function MessageCard({ message, onClick }: any) {
             <span className="text-xs text-gray-500 dark:text-gray-500 mt-1 block">
                 {new Date(message.created_at).toLocaleString()}
             </span>
+        </div>
+    );
+}
+
+function SkeletonMessageList() {
+    return (
+        <div className="space-y-3 animate-pulse">
+            {[1, 2, 3].map((key) => (
+                <div key={key} className="p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800">
+                    <div className="h-3 w-20 bg-gray-200 dark:bg-gray-700 rounded mb-2" />
+                    <div className="h-3 w-full bg-gray-200 dark:bg-gray-700 rounded mb-2" />
+                    <div className="h-3 w-24 bg-gray-200 dark:bg-gray-700 rounded" />
+                </div>
+            ))}
         </div>
     );
 }

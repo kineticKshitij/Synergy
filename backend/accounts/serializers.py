@@ -113,6 +113,12 @@ def validate_email_format(value):
 
 
 class RegisterSerializer(serializers.ModelSerializer):
+    role = serializers.ChoiceField(
+        choices=[('manager', 'Project Manager')],
+        default='manager',
+        required=False,
+        help_text="Self-registration is limited to project managers"
+    )
     email = serializers.EmailField(
         required=True,
         validators=[UniqueValidator(queryset=User.objects.all()), validate_email_format]
@@ -150,7 +156,7 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ('username', 'password', 'password2', 'email', 'first_name', 'last_name')
+        fields = ('username', 'password', 'password2', 'email', 'first_name', 'last_name', 'role')
 
     def validate_username(self, value):
         """Additional username validation"""
@@ -185,6 +191,7 @@ class RegisterSerializer(serializers.ModelSerializer):
         """Create user with sanitized data"""
         # Remove password2 as it's not needed for creation
         validated_data.pop('password2', None)
+        role = 'manager'
         
         user = User.objects.create(
             username=validated_data['username'],
@@ -194,6 +201,11 @@ class RegisterSerializer(serializers.ModelSerializer):
         )
         user.set_password(validated_data['password'])
         user.save()
+
+        # Persist selected role on the related profile
+        profile, _ = UserProfile.objects.get_or_create(user=user)
+        profile.role = role
+        profile.save()
         return user
 
 

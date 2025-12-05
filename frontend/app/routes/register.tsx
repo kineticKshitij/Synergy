@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useAuth } from '~/contexts/AuthContext';
 import { Lock, Mail, User, AlertCircle, CheckCircle2 } from 'lucide-react';
+import type { RegisterData } from '~/services/auth.service';
 
 export function meta() {
   return [
@@ -14,13 +15,14 @@ export default function Register() {
   const navigate = useNavigate();
   const { register } = useAuth();
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<RegisterData>({
     username: '',
     email: '',
     password: '',
     password2: '',
     first_name: '',
     last_name: '',
+    role: 'manager',
   });
 
   const [errors, setErrors] = useState<any>({});
@@ -84,8 +86,12 @@ export default function Register() {
     setErrors({});
 
     try {
-      await register(formData);
-      navigate('/dashboard');
+      const newUser = await register(formData);
+      if (newUser.role === 'manager' || newUser.role === 'admin') {
+        navigate('/dashboard');
+      } else {
+        navigate('/team-dashboard');
+      }
     } catch (err: any) {
       const apiErrors = err.response?.data;
       if (apiErrors) {
@@ -119,7 +125,7 @@ export default function Register() {
             SynergyOS
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
-            Create your account to get started
+            Only project managers can create an account. Invite your team members later from the dashboard.
           </p>
         </div>
 

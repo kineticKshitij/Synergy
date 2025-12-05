@@ -26,6 +26,7 @@ SECRET_KEY = config('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=False, cast=bool)
+FORCE_SSL = config('FORCE_SSL', default=not DEBUG, cast=bool)
 
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=Csv())
 
@@ -199,7 +200,7 @@ SIMPLE_JWT = {
 # Refresh token cookie settings
 REFRESH_TOKEN_COOKIE_NAME = config('REFRESH_TOKEN_COOKIE_NAME', default='synergy_refresh_token')
 REFRESH_TOKEN_COOKIE_PATH = config('REFRESH_TOKEN_COOKIE_PATH', default='/api/auth/')
-REFRESH_TOKEN_COOKIE_SECURE = config('REFRESH_TOKEN_COOKIE_SECURE', default=not DEBUG, cast=bool)
+REFRESH_TOKEN_COOKIE_SECURE = config('REFRESH_TOKEN_COOKIE_SECURE', default=FORCE_SSL, cast=bool)
 REFRESH_TOKEN_COOKIE_SAMESITE = config('REFRESH_TOKEN_COOKIE_SAMESITE', default='None' if not DEBUG else 'Lax')
 REFRESH_TOKEN_COOKIE_DOMAIN = config('REFRESH_TOKEN_COOKIE_DOMAIN', default='')
 
@@ -223,22 +224,27 @@ SECURE_REFERRER_POLICY = 'same-origin'
 
 # CSRF Settings
 CSRF_COOKIE_HTTPONLY = True
-CSRF_COOKIE_SECURE = not DEBUG  # Use secure cookies in production
+CSRF_COOKIE_SECURE = FORCE_SSL  # Match secure cookie usage with SSL enforcement
 CSRF_COOKIE_SAMESITE = 'Lax'
 CSRF_TRUSTED_ORIGINS = config('CSRF_TRUSTED_ORIGINS', default='http://localhost:5173,http://127.0.0.1:5173', cast=Csv())
 
 # Session Security
 SESSION_COOKIE_HTTPONLY = True
-SESSION_COOKIE_SECURE = not DEBUG  # Use secure cookies in production
+SESSION_COOKIE_SECURE = FORCE_SSL  # Match secure cookie usage with SSL enforcement
 SESSION_COOKIE_SAMESITE = 'Lax'
 SESSION_COOKIE_AGE = 3600  # 1 hour
 
 # Content Security Policy (for production)
-if not DEBUG:
+if FORCE_SSL:
     SECURE_SSL_REDIRECT = True
     SECURE_HSTS_SECONDS = 31536000  # 1 year
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
+else:
+    SECURE_SSL_REDIRECT = False
+    SECURE_HSTS_SECONDS = 0
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = False
+    SECURE_HSTS_PRELOAD = False
 
 # Input Validation Settings
 DATA_UPLOAD_MAX_MEMORY_SIZE = 52428800  # 50MB

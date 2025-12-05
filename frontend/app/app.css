@@ -7,22 +7,21 @@
 
 html,
 body {
-  @apply bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/30 dark:from-gray-950 dark:via-gray-900 dark:to-gray-900;
+  @apply bg-gradient-to-br from-slate-50 via-slate-100 to-slate-200 dark:from-slate-900 dark:via-slate-950 dark:to-black;
   scroll-behavior: smooth;
+  font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 
   @media (prefers-color-scheme: dark) {
     color-scheme: dark;
   }
 }
 
-/* Custom Animations */
+/* Custom Animations - Refined & Smooth */
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 @keyframes slideInUp {
@@ -49,7 +48,7 @@ body {
 
 @keyframes scaleIn {
   from {
-    transform: scale(0.95);
+    transform: scale(0.97);
     opacity: 0;
   }
   to {
@@ -59,48 +58,45 @@ body {
 }
 
 @keyframes shimmer {
-  0% {
-    background-position: -1000px 0;
-  }
-  100% {
-    background-position: 1000px 0;
-  }
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
 }
 
 .animate-fadeIn {
-  animation: fadeIn 0.3s ease-out;
+  animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .animate-slideInUp {
-  animation: slideInUp 0.4s ease-out;
+  animation: slideInUp 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .animate-slideInDown {
-  animation: slideInDown 0.4s ease-out;
+  animation: slideInDown 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .animate-scaleIn {
-  animation: scaleIn 0.3s ease-out;
+  animation: scaleIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Shimmer animation will be applied via Tailwind's animate-pulse instead */
 
-/* Custom Scrollbar */
+/* Custom Scrollbar - Professional */
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-gray-900;
+  @apply bg-slate-100 dark:bg-slate-900;
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-gray-700 rounded-lg;
+  @apply bg-slate-300 dark:bg-slate-700 rounded-lg;
+  transition: background-color 0.2s;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-gray-600;
+  @apply bg-slate-400 dark:bg-slate-600;
 }
 
 /* Smooth Transitions */
@@ -108,33 +104,65 @@ body {
   @apply transition-colors duration-200;
 }
 
-/* Focus States */
+/* Focus States - Accessible & Elegant */
 button:focus-visible,
 a:focus-visible,
 input:focus-visible,
 textarea:focus-visible,
 select:focus-visible {
-  @apply outline-none ring-2 ring-blue-500 ring-offset-2 ring-offset-gray-900;
+  @apply outline-none ring-2 ring-indigo-500 ring-offset-2 ring-offset-slate-50 dark:ring-offset-slate-900;
 }
 
-/* Card Hover Effects */
+/* Card Hover Effects - Subtle & Professional */
 .card-hover {
-  @apply transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/10 hover:-translate-y-1 hover:scale-[1.02];
+  @apply transition-all duration-300 hover:shadow-xl hover:shadow-slate-200/50 dark:hover:shadow-slate-950/50 hover:-translate-y-1;
 }
 
-/* Gradient Text */
+.card-hover-enhanced {
+  @apply transition-all duration-300 hover:shadow-2xl hover:shadow-slate-200/60 dark:hover:shadow-indigo-950/40 hover:-translate-y-0.5 hover:scale-[1.01];
+}
+
+/* Gradient Text - Sophisticated Indigo/Violet */
 .gradient-text {
-  @apply bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent;
+  @apply bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 dark:from-indigo-400 dark:via-violet-400 dark:to-purple-400 bg-clip-text text-transparent;
 }
 
-/* Glass Effect */
+/* Glass Effect - Modern Frosted Glass */
 .glass {
-  @apply bg-gray-800/50 backdrop-blur-xl border border-gray-700/50;
+  @apply bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200/50 dark:border-slate-700/50;
 }
 
-/* Skeleton Loading */
+.glass-effect {
+  @apply bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xl border border-slate-200/40 dark:border-slate-700/40;
+}
+
+/* Skeleton Loading - Refined */
 .skeleton {
-  @apply bg-gray-800 rounded animate-pulse;
+  @apply bg-slate-200 dark:bg-slate-800 rounded animate-pulse;
+}
+
+.skeleton-loader {
+  @apply bg-slate-200 dark:bg-slate-800 rounded;
+  background: linear-gradient(
+    90deg,
+    rgba(226, 232, 240, 0.5) 0%,
+    rgba(226, 232, 240, 0.8) 50%,
+    rgba(226, 232, 240, 0.5) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@media (prefers-color-scheme: dark) {
+  .skeleton-loader {
+    background: linear-gradient(
+      90deg,
+      rgba(30, 41, 59, 0.5) 0%,
+      rgba(30, 41, 59, 0.8) 50%,
+      rgba(30, 41, 59, 0.5) 100%
+    );
+    background-size: 200% 100%;
+  }
 }
 
 /* Pulse Animation for Important Elements */
@@ -225,61 +253,52 @@ select:focus-visible {
   animation: float 3s ease-in-out infinite;
 }
 
-/* Enhanced Glass Effect */
-.glass-effect {
-  @apply bg-white/10 dark:bg-gray-800/50 backdrop-blur-xl border border-white/20 dark:border-gray-700/50;
-}
-
-/* Button Variants */
+/* Enhanced Button Styles - Professional & Accessible */
 .btn-primary {
-  @apply px-6 py-3 bg-gradient-to-r from-blue-600 via-blue-700 to-purple-600 hover:from-blue-700 hover:via-purple-700 hover:to-purple-800 text-white font-semibold rounded-xl transition-all transform hover:scale-105 shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none;
+  @apply px-6 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-semibold rounded-xl transition-all transform hover:scale-105 shadow-lg shadow-indigo-500/30 hover:shadow-xl hover:shadow-indigo-500/40 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none;
 }
 
 .btn-secondary {
-  @apply px-6 py-3 bg-white/10 dark:bg-gray-800 hover:bg-white/20 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white font-semibold rounded-xl transition-all hover:border-blue-500/50 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed;
+  @apply px-6 py-3 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-50 font-semibold rounded-xl transition-all hover:border-indigo-400 dark:hover:border-indigo-500 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed;
 }
 
 .btn-ghost {
-  @apply px-6 py-3 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed;
+  @apply px-6 py-3 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-50 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed;
 }
 
 /* Enhanced Input Styles */
 .input-enhanced {
-  @apply w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-all placeholder:text-gray-500;
+  @apply w-full px-4 py-3 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:text-white transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500;
 }
 
 .input-enhanced:focus {
-  @apply shadow-lg shadow-blue-500/20;
+  @apply shadow-lg shadow-indigo-500/10;
 }
 
-/* Card Styles */
+/* Card Styles - Modern & Clean */
 .card {
-  @apply bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 p-6 transition-all;
+  @apply bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm rounded-2xl shadow-sm border border-slate-200/50 dark:border-slate-700/50 p-6 transition-all;
 }
 
-.card-hover-enhanced {
-  @apply bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 p-6 transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/20 hover:-translate-y-2 hover:scale-[1.02] hover:border-blue-500/50 hover:bg-white dark:hover:bg-gray-800;
-}
-
-/* Badge Styles */
+/* Badge Styles - Refined Colors */
 .badge {
   @apply inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium border;
 }
 
 .badge-success {
-  @apply inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium border bg-green-500/20 text-green-400 border-green-500/30;
+  @apply bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-900;
 }
 
 .badge-warning {
-  @apply inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium border bg-yellow-500/20 text-yellow-400 border-yellow-500/30;
+  @apply bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-900;
 }
 
 .badge-error {
-  @apply inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium border bg-red-500/20 text-red-400 border-red-500/30;
+  @apply bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-900;
 }
 
 .badge-info {
-  @apply inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium border bg-blue-500/20 text-blue-400 border-blue-500/30;
+  @apply bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-900;
 }
 
 /* Skeleton Loader */
