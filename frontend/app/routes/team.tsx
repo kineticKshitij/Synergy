@@ -18,12 +18,13 @@ interface TeamMember {
     email: string;
     first_name: string;
     last_name: string;
-    phone?: string;
-    department?: string;
-    position?: string;
-    role: string;
-    is_active: boolean;
     date_joined: string;
+    profile: {
+        role: string;
+        phone?: string;
+        department?: string;
+        position?: string;
+    };
 }
 
 function TeamContent() {
@@ -48,7 +49,7 @@ function TeamContent() {
             if (!token) {
                 return;
             }
-            const response = await fetch('/api/users/', {
+            const response = await fetch('/api/auth/team-members/', {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json',
@@ -76,14 +77,14 @@ function TeamContent() {
                 member.username.toLowerCase().includes(query) ||
                 member.email.toLowerCase().includes(query) ||
                 `${member.first_name} ${member.last_name}`.toLowerCase().includes(query) ||
-                member.department?.toLowerCase().includes(query) ||
-                member.position?.toLowerCase().includes(query)
+                member.profile?.department?.toLowerCase().includes(query) ||
+                member.profile?.position?.toLowerCase().includes(query)
             );
         }
 
         // Apply role filter
         if (roleFilter !== 'all') {
-            filtered = filtered.filter(member => member.role === roleFilter);
+            filtered = filtered.filter(member => member.profile?.role === roleFilter);
         }
 
         setFilteredMembers(filtered);
@@ -93,15 +94,9 @@ function TeamContent() {
         const badges = {
             admin: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400',
             manager: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400',
-            team_member: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400',
+            member: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400',
         };
-        return badges[role as keyof typeof badges] || badges.team_member;
-    };
-
-    const getStatusBadge = (isActive: boolean) => {
-        return isActive
-            ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-            : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-400';
+        return badges[role as keyof typeof badges] || badges.member;
     };
 
     return (
@@ -190,11 +185,8 @@ function TeamContent() {
                                         <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider border-r border-slate-300 dark:border-slate-700">
                                             Department
                                         </th>
-                                        <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider border-r border-slate-300 dark:border-slate-700">
-                                            Role
-                                        </th>
                                         <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                                            Status
+                                            Role
                                         </th>
                                     </tr>
                                 </thead>
@@ -235,13 +227,13 @@ function TeamContent() {
                                                 </a>
                                             </td>
                                             <td className="px-4 py-3 border-r border-slate-200 dark:border-slate-800">
-                                                {member.phone ? (
+                                                {member.profile?.phone ? (
                                                     <a 
-                                                        href={`tel:${member.phone}`} 
+                                                        href={`tel:${member.profile.phone}`} 
                                                         className="text-sm text-slate-900 dark:text-slate-100 hover:text-indigo-600 dark:hover:text-indigo-400"
                                                         onClick={(e) => e.stopPropagation()}
                                                     >
-                                                        {member.phone}
+                                                        {member.profile.phone}
                                                     </a>
                                                 ) : (
                                                     <span className="text-sm text-slate-400 dark:text-slate-600">—</span>
@@ -249,22 +241,17 @@ function TeamContent() {
                                             </td>
                                             <td className="px-4 py-3 border-r border-slate-200 dark:border-slate-800">
                                                 <span className="text-sm text-slate-900 dark:text-slate-100 font-medium">
-                                                    {member.position || <span className="text-slate-400 dark:text-slate-600">—</span>}
+                                                    {member.profile?.position || <span className="text-slate-400 dark:text-slate-600">—</span>}
                                                 </span>
                                             </td>
                                             <td className="px-4 py-3 border-r border-slate-200 dark:border-slate-800">
                                                 <span className="text-sm text-slate-900 dark:text-slate-100">
-                                                    {member.department || <span className="text-slate-400 dark:text-slate-600">—</span>}
-                                                </span>
-                                            </td>
-                                            <td className="px-4 py-3 border-r border-slate-200 dark:border-slate-800">
-                                                <span className={`inline-block px-2.5 py-1 rounded-md text-xs font-bold ${getRoleBadge(member.role)}`}>
-                                                    {member.role === 'team_member' ? 'Member' : member.role.charAt(0).toUpperCase() + member.role.slice(1)}
+                                                    {member.profile?.department || <span className="text-slate-400 dark:text-slate-600">—</span>}
                                                 </span>
                                             </td>
                                             <td className="px-4 py-3">
-                                                <span className={`inline-block px-2.5 py-1 rounded-md text-xs font-bold ${getStatusBadge(member.is_active)}`}>
-                                                    {member.is_active ? 'Active' : 'Inactive'}
+                                                <span className={`inline-block px-2.5 py-1 rounded-md text-xs font-bold ${getRoleBadge(member.profile?.role || 'member')}`}>
+                                                    {member.profile?.role === 'member' ? 'Member' : (member.profile?.role?.charAt(0).toUpperCase() || '') + (member.profile?.role?.slice(1) || 'Member')}
                                                 </span>
                                             </td>
                                         </tr>
@@ -279,10 +266,6 @@ function TeamContent() {
                 <div className="mt-4 flex items-center justify-between text-sm text-slate-600 dark:text-slate-400 font-medium">
                     <p>
                         Showing {filteredMembers.length} of {teamMembers.length} team members
-                    </p>
-                    <p>
-                        Active: <span className="text-green-600 dark:text-green-500 font-bold">{teamMembers.filter(m => m.is_active).length}</span> | 
-                        Inactive: <span className="text-slate-500 dark:text-slate-400 font-bold">{teamMembers.filter(m => !m.is_active).length}</span>
                     </p>
                 </div>
             </main>

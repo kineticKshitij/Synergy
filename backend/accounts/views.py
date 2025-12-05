@@ -782,6 +782,11 @@ class TeamMemberListView(generics.ListAPIView):
     
     def get_queryset(self):
         user = self.request.user
+        
+        # Managers and admins can see all users
+        if hasattr(user, 'profile') and user.profile.role in ['manager', 'admin']:
+            return User.objects.all().select_related('profile').distinct()
+        
         # Get all projects where user is owner or team member
         from projects.models import Project
         user_projects = Project.objects.filter(
@@ -794,7 +799,7 @@ class TeamMemberListView(generics.ListAPIView):
             team_member_ids.update(project.team_members.values_list('id', flat=True))
             team_member_ids.add(project.owner.id)
         
-        return User.objects.filter(id__in=team_member_ids).distinct()
+        return User.objects.filter(id__in=team_member_ids).select_related('profile').distinct()
 
 
 @method_decorator(ratelimit(key='ip', rate='3/5m', method='POST', block=True), name='dispatch')
