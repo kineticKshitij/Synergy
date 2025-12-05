@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router';
 import { useAuth } from '~/contexts/AuthContext';
 import { ProtectedRoute } from '~/components/ProtectedRoute';
 import { Navbar } from '~/components/Navbar';
+import { AIInsightsCard } from '~/components/AIInsightsCard';
+import { AIAssistant } from '~/components/AIAssistant';
 import authService from '~/services/auth.service';
 import type { DashboardStats } from '~/services/auth.service';
 import { projectService, type Project } from '~/services/project.service';
@@ -660,6 +662,9 @@ function DashboardContent() {
                     </div>
                 </div>
             </main>
+
+            {/* AI Assistant - floating chat */}
+            <AIAssistant />
         </div>
     );
 }
