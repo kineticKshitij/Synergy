@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router';
 import { projectService } from '~/services/project.service';
 import { removeTeamMember } from '~/services/team.service';
 import { ProtectedRoute } from '~/components/ProtectedRoute';
-import { TaskModal } from '~/components/TaskModal';
+import TaskDetailModal from '~/components/TaskDetailModal';
 import { Navbar } from '~/components/Navbar';
 import InviteTeamMemberModal from '~/components/InviteTeamMemberModal';
 import { AITaskBreakdownModal } from '~/components/AITaskBreakdownModal';
@@ -222,10 +222,9 @@ function ProjectDetailsContent() {
         }
     };
 
-    const handleEditTask = async (taskData: any) => {
-        if (!editingTask) return;
+    const handleUpdateTask = async (taskId: number, taskData: any) => {
         try {
-            await projectService.updateTask(editingTask.id, taskData);
+            await projectService.updateTask(taskId, taskData);
             await loadTasks();
             await loadProject(); // Refresh project to update stats
             setEditingTask(null);
@@ -835,18 +834,20 @@ function ProjectDetailsContent() {
                 )}
             </div>
 
-            {/* Task Modal */}
-            <TaskModal
+            {/* Task Detail Modal */}
+            <TaskDetailModal
                 isOpen={isTaskModalOpen}
                 onClose={() => {
                     setIsTaskModalOpen(false);
                     setEditingTask(null);
                 }}
-                onSubmit={editingTask ? handleEditTask : handleCreateTask}
-                onDelete={editingTask ? handleDeleteTask : undefined}
+                onSubmit={handleCreateTask}
+                onUpdate={handleUpdateTask}
+                onDelete={handleDeleteTask}
                 projectId={Number(id)}
                 task={editingTask}
                 teamMembers={project?.team_members || []}
+                availableTasks={tasks}
             />
 
             {/* Invite Team Member Modal */}
