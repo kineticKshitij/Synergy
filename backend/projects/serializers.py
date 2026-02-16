@@ -7,9 +7,24 @@ from .models import (
 
 
 class UserSerializer(serializers.ModelSerializer):
+    full_name = serializers.SerializerMethodField()
+    
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'first_name', 'last_name']
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'full_name']
+    
+    def get_full_name(self, obj):
+        """Get user's full name or username"""
+        if obj.first_name or obj.last_name:
+            return f"{obj.first_name} {obj.last_name}".strip()
+        return obj.username
+
+
+class ProjectBasicSerializer(serializers.ModelSerializer):
+    """Minimal project serializer for nested representations"""
+    class Meta:
+        model = Project
+        fields = ['id', 'name']
 
 
 class ProjectSerializer(serializers.ModelSerializer):
@@ -31,6 +46,8 @@ class ProjectSerializer(serializers.ModelSerializer):
 
 
 class TaskSerializer(serializers.ModelSerializer):
+    project = ProjectBasicSerializer(read_only=True)
+    project_id = serializers.IntegerField(write_only=True)
     assigned_to = UserSerializer(read_only=True)
     assigned_to_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
     assigned_to_multiple = UserSerializer(many=True, read_only=True)
@@ -55,7 +72,7 @@ class TaskSerializer(serializers.ModelSerializer):
     class Meta:
         model = Task
         fields = [
-            'id', 'project', 'title', 'description', 'status', 'priority',
+            'id', 'project', 'project_id', 'title', 'description', 'status', 'priority',
             'assigned_to', 'assigned_to_id', 'assigned_to_multiple', 'assigned_to_multiple_ids',
             'depends_on', 'blocking_tasks', 'blocked_by', 'can_start',
             'due_date', 'estimated_hours', 'actual_hours', 'impact', 

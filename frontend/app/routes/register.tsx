@@ -1,352 +1,381 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useState, useEffect } from 'react';
+import { Form, useNavigate, Link } from 'react-router';
 import { useAuth } from '~/contexts/AuthContext';
-import { Lock, Mail, User, AlertCircle, CheckCircle2 } from 'lucide-react';
-import type { RegisterData } from '~/services/auth.service';
+import authService from '~/services/auth.service';
+import { User, Mail, Lock, AlertCircle, Eye, EyeOff, CheckCircle2, Sparkles, Shield, UserCog } from 'lucide-react';
+import type { Route } from './+types/register';
 
-export function meta() {
-  return [
-    { title: 'Register - SynergyOS' },
-    { name: 'description', content: 'Create your SynergyOS account' },
-  ];
+export function meta({ }: Route.MetaArgs) {
+    return [
+        { title: 'Register - SynergyOS' },
+        { name: 'description', content: 'Create your SynergyOS account' },
+    ];
 }
 
 export default function Register() {
-  const navigate = useNavigate();
-  const { register } = useAuth();
+    const navigate = useNavigate();
+    const { isAuthenticated, isLoading: authLoading } = useAuth();
+    const [formData, setFormData] = useState({
+        username: '',
+        email: '',
+        password: '',
+        confirmPassword: '',
+        firstName: '',
+        lastName: '',
+    });
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const [error, setError] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const [passwordStrength, setPasswordStrength] = useState(0);
+    const [termsAccepted, setTermsAccepted] = useState(false);
 
-  const [formData, setFormData] = useState<RegisterData>({
-    username: '',
-    email: '',
-    password: '',
-    password2: '',
-    first_name: '',
-    last_name: '',
-    role: 'manager',
-  });
+    useEffect(() => {
+        if (authLoading) return;
+        if (isAuthenticated) {
+            navigate('/dashboard', { replace: true });
+        }
+    }, [authLoading, isAuthenticated, navigate]);
 
-  const [errors, setErrors] = useState<any>({});
-  const [isLoading, setIsLoading] = useState(false);
-  const [passwordStrength, setPasswordStrength] = useState(0);
+    // Calculate password strength
+    useEffect(() => {
+        const password = formData.password;
+        let strength = 0;
+        if (password.length >= 8) strength++;
+        if (/[a-z]/.test(password) && /[A-Z]/.test(password)) strength++;
+        if (/\d/.test(password)) strength++;
+        if (/[^a-zA-Z\d]/.test(password)) strength++;
+        setPasswordStrength(strength);
+    }, [formData.password]);
 
-  const checkPasswordStrength = (password: string) => {
-    let strength = 0;
-    if (password.length >= 8) strength++;
-    if (password.length >= 12) strength++;
-    if (/[a-z]/.test(password) && /[A-Z]/.test(password)) strength++;
-    if (/\d/.test(password)) strength++;
-    if (/[^a-zA-Z\d]/.test(password)) strength++;
-    return strength;
-  };
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setFormData({
+            ...formData,
+            [e.target.name]: e.target.value,
+        });
+    };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError('');
 
-    if (name === 'password') {
-      setPasswordStrength(checkPasswordStrength(value));
-    }
+        // Validation
+        if (!termsAccepted) {
+            setError('You must accept the terms and conditions');
+            return;
+        }
 
-    // Clear error for this field
-    if (errors[name]) {
-      setErrors((prev: any) => ({ ...prev, [name]: '' }));
-    }
-  };
+        if (formData.password !== formData.confirmPassword) {
+            setError('Passwords do not match');
+            return;
+        }
 
-  const validateForm = () => {
-    const newErrors: any = {};
+        if (formData.password.length < 8) {
+            setError('Password must be at least 8 characters long');
+            return;
+        }
 
-    if (!formData.username) newErrors.username = 'Username is required';
-    if (formData.username.length < 3) newErrors.username = 'Username must be at least 3 characters';
+        setIsLoading(true);
 
-    if (!formData.email) newErrors.email = 'Email is required';
-    if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = 'Email is invalid';
+        try {
+            await authService.register({
+                username: formData.username,
+                email: formData.email,
+                password: formData.password,
+                first_name: formData.firstName,
+                last_name: formData.lastName,
+            });
+            
+            alert('Registration successful! Please login.');
+            navigate('/login');
+        } catch (err: any) {
+            const errorData = err.response?.data;
+            let errorMessage = 'Registration failed. Please try again.';
+            
+            if (errorData) {
+                if (typeof errorData === 'string') {
+                    errorMessage = errorData;
+                } else if (errorData.username) {
+                    errorMessage = `Username: ${errorData.username[0]}`;
+                } else if (errorData.email) {
+                    errorMessage = `Email: ${errorData.email[0]}`;
+                } else if (errorData.password) {
+                    errorMessage = `Password: ${errorData.password[0]}`;
+                } else if (errorData.detail) {
+                    errorMessage = errorData.detail;
+                }
+            }
+            
+            setError(errorMessage);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
-    if (!formData.first_name) newErrors.first_name = 'First name is required';
-    if (!formData.last_name) newErrors.last_name = 'Last name is required';
+    const getPasswordStrengthColor = () => {
+        if (passwordStrength === 0) return 'from-gray-500 to-gray-600';
+        if (passwordStrength === 1) return 'from-red-500 to-red-600';
+        if (passwordStrength === 2) return 'from-orange-500 to-orange-600';
+        if (passwordStrength === 3) return 'from-yellow-500 to-yellow-600';
+        return 'from-green-500 to-green-600';
+    };
 
-    if (!formData.password) newErrors.password = 'Password is required';
-    if (formData.password.length < 8) newErrors.password = 'Password must be at least 8 characters';
+    const getPasswordStrengthText = () => {
+        if (passwordStrength === 0) return 'Very Weak';
+        if (passwordStrength === 1) return 'Weak';
+        if (passwordStrength === 2) return 'Fair';
+        if (passwordStrength === 3) return 'Good';
+        return 'Strong';
+    };
 
-    if (!formData.password2) newErrors.password2 = 'Please confirm your password';
-    if (formData.password !== formData.password2) {
-      newErrors.password2 = 'Passwords do not match';
-    }
+    const passwordsMatch = formData.password && formData.confirmPassword && formData.password === formData.confirmPassword;
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!validateForm()) return;
-
-    setIsLoading(true);
-    setErrors({});
-
-    try {
-      const newUser = await register(formData);
-      if (newUser.role === 'manager' || newUser.role === 'admin') {
-        navigate('/dashboard');
-      } else {
-        navigate('/team-dashboard');
-      }
-    } catch (err: any) {
-      const apiErrors = err.response?.data;
-      if (apiErrors) {
-        setErrors(apiErrors);
-      } else {
-        setErrors({ general: 'Registration failed. Please try again.' });
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const getPasswordStrengthColor = () => {
-    if (passwordStrength <= 1) return 'bg-red-500';
-    if (passwordStrength <= 3) return 'bg-yellow-500';
-    return 'bg-green-500';
-  };
-
-  const getPasswordStrengthText = () => {
-    if (passwordStrength <= 1) return 'Weak';
-    if (passwordStrength <= 3) return 'Medium';
-    return 'Strong';
-  };
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 px-4 py-8">
-      <div className="max-w-md w-full">
-        {/* Logo/Brand */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
-            SynergyOS
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Only project managers can create an account. Invite your team members later from the dashboard.
-          </p>
-        </div>
-
-        {/* Registration Card */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8">
-          <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-6">
-            Sign Up
-          </h2>
-
-          {errors.general && (
-            <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-red-600 dark:text-red-400">{errors.general}</p>
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Username */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Username *
-              </label>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type="text"
-                  name="username"
-                  value={formData.username}
-                  onChange={handleChange}
-                  className={`input-enhanced w-full pl-10 pr-4 ${errors.username ? 'border-red-500 focus:ring-red-500' : ''}`}
-                  placeholder="Choose a username"
-                  disabled={isLoading}
-                />
-              </div>
-              {errors.username && (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.username}</p>
-              )}
-            </div>
-
-            {/* Email */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Email *
-              </label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  className={`input-enhanced w-full pl-10 pr-4 ${errors.email ? 'border-red-500 focus:ring-red-500' : ''}`}
-                  placeholder="your.email@example.com"
-                  disabled={isLoading}
-                />
-              </div>
-              {errors.email && (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.email}</p>
-              )}
-            </div>
-
-            {/* First Name & Last Name */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  First Name *
-                </label>
-                <input
-                  type="text"
-                  name="first_name"
-                  value={formData.first_name}
-                  onChange={handleChange}
-                  className={`input-enhanced w-full ${errors.first_name ? 'border-red-500 focus:ring-red-500' : ''}`}
-                  placeholder="First name"
-                  disabled={isLoading}
-                />
-                {errors.first_name && (
-                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.first_name}</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Last Name *
-                </label>
-                <input
-                  type="text"
-                  name="last_name"
-                  value={formData.last_name}
-                  onChange={handleChange}
-                  className={`input-enhanced w-full ${errors.last_name ? 'border-red-500 focus:ring-red-500' : ''}`}
-                  placeholder="Last name"
-                  disabled={isLoading}
-                />
-                {errors.last_name && (
-                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.last_name}</p>
-                )}
-              </div>
-            </div>
-
-            {/* Password */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Password *
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type="password"
-                  name="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  className={`input-enhanced w-full pl-10 pr-4 ${errors.password ? 'border-red-500 focus:ring-red-500' : ''}`}
-                  placeholder="Create a strong password"
-                  disabled={isLoading}
-                />
-              </div>
-              {formData.password && (
-                <div className="mt-2">
-                  <div className="flex items-center gap-2 mb-1">
-                    <div className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full transition-all ${getPasswordStrengthColor()}`}
-                        style={{ width: `${(passwordStrength / 5) * 100}%` }}
-                      />
-                    </div>
-                    <span className="text-xs text-gray-600 dark:text-gray-400">
-                      {getPasswordStrengthText()}
-                    </span>
-                  </div>
+    if (authLoading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 px-4">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-12 h-12 border-4 border-blue-200/30 border-t-blue-400 rounded-full animate-spin" />
+                    <p className="text-white/70 text-sm font-medium">Loading...</p>
                 </div>
-              )}
-              {errors.password && (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.password}</p>
-              )}
+            </div>
+        );
+    }
+
+    return (
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 px-4 py-12 relative overflow-hidden">
+            {/* Animated background elements */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl animate-pulse" />
+                <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-indigo-500/5 rounded-full blur-3xl" />
             </div>
 
-            {/* Confirm Password */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Confirm Password *
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type="password"
-                  name="password2"
-                  value={formData.password2}
-                  onChange={handleChange}
-                  className={`input-enhanced w-full pl-10 pr-4 ${errors.password2 ? 'border-red-500 focus:ring-red-500' : ''}`}
-                  placeholder="Confirm your password"
-                  disabled={isLoading}
-                />
-                {formData.password2 && formData.password === formData.password2 && (
-                  <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-green-500" />
-                )}
-              </div>
-              {errors.password2 && (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.password2}</p>
-              )}
+            <div className="max-w-2xl w-full relative z-10">
+                {/* Logo/Brand */}
+                <div className="text-center mb-8 animate-slideInDown">
+                    <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-600 rounded-3xl mb-6 shadow-2xl shadow-blue-500/50">
+                        <Sparkles className="w-10 h-10 text-white" />
+                    </div>
+                    <h1 className="text-5xl font-bold text-white mb-3">
+                        Join SynergyOS
+                    </h1>
+                    <p className="text-blue-200 text-lg">
+                        Start managing your projects intelligently
+                    </p>
+                </div>
+
+                {/* Register Card */}
+                <div className="bg-white/10 backdrop-blur-xl rounded-3xl shadow-2xl p-10 border border-white/20 animate-slideInUp">
+                    <h2 className="text-3xl font-bold text-white mb-2">
+                        Create Account
+                    </h2>
+                    <p className="text-blue-200 text-sm mb-8">Fill in your details to get started</p>
+
+                    {error && (
+                        <div className="mb-6 p-4 bg-red-500/20 backdrop-blur-sm border border-red-400/50 rounded-xl flex items-start gap-3 animate-shake">
+                            <AlertCircle className="w-5 h-5 text-red-300 flex-shrink-0 mt-0.5" />
+                            <p className="text-sm text-red-200 font-medium">{error}</p>
+                        </div>
+                    )}
+
+                    <form onSubmit={handleSubmit} className="space-y-5">
+                        {/* Name Fields */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="relative group">
+                                <User className="absolute left-4 top-4 w-5 h-5 text-blue-300 group-focus-within:text-blue-200 transition-colors" />
+                                <input
+                                    type="text"
+                                    name="firstName"
+                                    value={formData.firstName}
+                                    onChange={handleChange}
+                                    className="w-full px-12 py-4 bg-white/10 backdrop-blur-sm border-2 border-white/20 rounded-xl text-white placeholder-blue-200/50 focus:border-blue-400 focus:ring-4 focus:ring-blue-500/30 transition-all outline-none"
+                                    placeholder="First name"
+                                    required
+                                    disabled={isLoading}
+                                />
+                            </div>
+                            <div className="relative group">
+                                <User className="absolute left-4 top-4 w-5 h-5 text-blue-300 group-focus-within:text-blue-200 transition-colors" />
+                                <input
+                                    type="text"
+                                    name="lastName"
+                                    value={formData.lastName}
+                                    onChange={handleChange}
+                                    className="w-full px-12 py-4 bg-white/10 backdrop-blur-sm border-2 border-white/20 rounded-xl text-white placeholder-blue-200/50 focus:border-blue-400 focus:ring-4 focus:ring-blue-500/30 transition-all outline-none"
+                                    placeholder="Last name"
+                                    required
+                                    disabled={isLoading}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Username Field */}
+                        <div className="relative group">
+                            <UserCog className="absolute left-4 top-4 w-5 h-5 text-blue-300 group-focus-within:text-blue-200 transition-colors" />
+                            <input
+                                type="text"
+                                name="username"
+                                value={formData.username}
+                                onChange={handleChange}
+                                className="w-full px-12 py-4 bg-white/10 backdrop-blur-sm border-2 border-white/20 rounded-xl text-white placeholder-blue-200/50 focus:border-blue-400 focus:ring-4 focus:ring-blue-500/30 transition-all outline-none"
+                                placeholder="Choose a username"
+                                required
+                                disabled={isLoading}
+                            />
+                        </div>
+
+                        {/* Email Field */}
+                        <div className="relative group">
+                            <Mail className="absolute left-4 top-4 w-5 h-5 text-blue-300 group-focus-within:text-blue-200 transition-colors" />
+                            <input
+                                type="email"
+                                name="email"
+                                value={formData.email}
+                                onChange={handleChange}
+                                className="w-full px-12 py-4 bg-white/10 backdrop-blur-sm border-2 border-white/20 rounded-xl text-white placeholder-blue-200/50 focus:border-blue-400 focus:ring-4 focus:ring-blue-500/30 transition-all outline-none"
+                                placeholder="Your email address"
+                                required
+                                disabled={isLoading}
+                            />
+                        </div>
+
+                        {/* Password Field */}
+                        <div className="space-y-2">
+                            <div className="relative group">
+                                <Lock className="absolute left-4 top-4 w-5 h-5 text-blue-300 group-focus-within:text-blue-200 transition-colors" />
+                                <input
+                                    type={showPassword ? 'text' : 'password'}
+                                    name="password"
+                                    value={formData.password}
+                                    onChange={handleChange}
+                                    className="w-full px-12 py-4 bg-white/10 backdrop-blur-sm border-2 border-white/20 rounded-xl text-white placeholder-blue-200/50 focus:border-blue-400 focus:ring-4 focus:ring-blue-500/30 transition-all outline-none"
+                                    placeholder="Create a strong password"
+                                    required
+                                    disabled={isLoading}
+                                    minLength={8}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-4 top-4 text-blue-300 hover:text-white transition-colors"
+                                >
+                                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                                </button>
+                            </div>
+                            
+                            {/* Password Strength Indicator */}
+                            {formData.password && (
+                                <div className="space-y-2 animate-slideInDown">
+                                    <div className="flex gap-1">
+                                        {[...Array(4)].map((_, i) => (
+                                            <div
+                                                key={i}
+                                                className={`h-1.5 flex-1 rounded-full transition-all ${
+                                                    i < passwordStrength
+                                                        ? `bg-gradient-to-r ${getPasswordStrengthColor()}`
+                                                        : 'bg-white/20'
+                                                }`}
+                                            />
+                                        ))}
+                                    </div>
+                                    <p className="text-xs text-blue-200 flex items-center gap-2">
+                                        <Shield className="w-3 h-3" />
+                                        Password strength: <span className="font-bold text-white">{getPasswordStrengthText()}</span>
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Confirm Password Field */}
+                        <div className="relative group">
+                            <Lock className="absolute left-4 top-4 w-5 h-5 text-blue-300 group-focus-within:text-blue-200 transition-colors" />
+                            <input
+                                type={showConfirmPassword ? 'text' : 'password'}
+                                name="confirmPassword"
+                                value={formData.confirmPassword}
+                                onChange={handleChange}
+                                className="w-full px-12 py-4 bg-white/10 backdrop-blur-sm border-2 border-white/20 rounded-xl text-white placeholder-blue-200/50 focus:border-blue-400 focus:ring-4 focus:ring-blue-500/30 transition-all outline-none"
+                                placeholder="Confirm your password"
+                                required
+                                disabled={isLoading}
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                className="absolute right-4 top-4 text-blue-300 hover:text-white transition-colors"
+                            >
+                                {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                            </button>
+                            {passwordsMatch && (
+                                <div className="absolute right-14 top-4">
+                                    <CheckCircle2 className="w-5 h-5 text-green-400" />
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Terms Checkbox */}
+                        <div className="flex items-start gap-3 py-4 px-5 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl hover:bg-white/15 transition-all">
+                            <input
+                                type="checkbox"
+                                id="terms"
+                                checked={termsAccepted}
+                                onChange={(e) => setTermsAccepted(e.target.checked)}
+                                className="w-5 h-5 text-blue-500 bg-white/10 border-white/30 rounded focus:ring-blue-500 focus:ring-offset-0 cursor-pointer mt-0.5"
+                                required
+                            />
+                            <label htmlFor="terms" className="text-sm text-blue-100 cursor-pointer">
+                                I accept the{' '}
+                                <a href="/terms" className="text-white font-bold hover:underline">
+                                    Terms and Conditions
+                                </a>
+                                {' '}and{' '}
+                                <a href="/privacy" className="text-white font-bold hover:underline">
+                                    Privacy Policy
+                                </a>
+                            </label>
+                        </div>
+
+                        {/* Submit Button */}
+                        <button
+                            type="submit"
+                            disabled={isLoading}
+                            className="w-full py-4 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-bold rounded-xl hover:from-blue-600 hover:to-indigo-700 focus:ring-4 focus:ring-blue-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-500/50 hover:shadow-xl hover:shadow-blue-500/60 transform hover:scale-[1.02] active:scale-[0.98]"
+                        >
+                            {isLoading ? (
+                                <div className="flex items-center justify-center gap-3">
+                                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                    <span>Creating account...</span>
+                                </div>
+                            ) : (
+                                'Create Account'
+                            )}
+                        </button>
+                    </form>
+
+                    {/* Login Link */}
+                    <div className="mt-8 text-center">
+                        <p className="text-sm text-blue-100">
+                            Already have an account?{' '}
+                            <a
+                                href="/login"
+                                className="text-white font-bold hover:underline transition-all"
+                            >
+                                Sign in
+                            </a>
+                        </p>
+                    </div>
+                </div>
+
+                {/* Security Badge */}
+                <div className="mt-8 text-center animate-fadeIn" style={{ animationDelay: '0.3s' }}>
+                    <div className="inline-flex items-center gap-2 px-5 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full">
+                        <Shield className="w-4 h-4 text-blue-300" />
+                        <p className="text-sm text-blue-100 font-medium">
+                            Your data is protected with end-to-end encryption
+                        </p>
+                    </div>
+                </div>
             </div>
-
-            {/* Terms */}
-            <div className="flex items-start">
-              <input
-                type="checkbox"
-                id="terms"
-                required
-                className="w-4 h-4 mt-1 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                disabled={isLoading}
-              />
-              <label htmlFor="terms" className="ml-2 text-sm text-gray-600 dark:text-gray-400">
-                I agree to the{' '}
-                <a href="#" className="text-blue-600 hover:text-blue-700 dark:text-blue-400">
-                  Terms of Service
-                </a>{' '}
-                and{' '}
-                <a href="#" className="text-blue-600 hover:text-blue-700 dark:text-blue-400">
-                  Privacy Policy
-                </a>
-              </label>
-            </div>
-
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="btn-primary w-full"
-            >
-              {isLoading ? (
-                <>
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Creating account...
-                </>
-              ) : (
-                'Create Account'
-              )}
-            </button>
-          </form>
-
-          {/* Login Link */}
-          <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Already have an account?{' '}
-              <a
-                href="/login"
-                className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-semibold"
-              >
-                Sign in
-              </a>
-            </p>
-          </div>
         </div>
-
-        {/* Security Badge */}
-        <div className="mt-6 text-center">
-          <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center justify-center gap-2">
-            <Lock className="w-4 h-4" />
-            Your data is encrypted and secure
-          </p>
-        </div>
-      </div>
-    </div>
-  );
+    );
 }

@@ -56,7 +56,7 @@ Existing Tasks: {len(project_data.get('existing_tasks', []))} tasks already crea
 Provide your response as a JSON array of tasks. Each task should have:
 - title: Short, actionable task title (max 100 chars)
 - description: Detailed description of what needs to be done (2-3 sentences)
-- priority: One of "low", "medium", "high", or "critical"
+- priority: One of "low", "medium", "high", or "urgent"
 - estimated_hours: Realistic time estimate as a number
 
 Return ONLY the JSON array, no other text.
@@ -124,7 +124,7 @@ Generate 3-10 NEW tasks that:
 For each task, provide:
 - title: Clear, actionable task title (max 100 chars)
 - description: Detailed description of what needs to be done (2-4 sentences)
-- priority: One of "low", "medium", "high", or "critical"
+- priority: One of "low", "medium", "high", or "urgent"
 - estimated_hours: Realistic time estimate as a number (be conservative)
 - rationale: Brief explanation of why this task is important (1 sentence)
 
@@ -278,7 +278,7 @@ User Input: "{nl_input}"
 Extract and structure this as JSON with:
 - title: Clear, concise task title (max 100 chars)
 - description: Detailed task description
-- priority: One of "low", "medium", "high", "critical" (infer from urgency words)
+- priority: One of "low", "medium", "high", "urgent" (infer from urgency words)
 - estimated_hours: Estimated time to complete (number, be realistic)
 - tags: Array of 2-4 relevant tags/keywords
 - due_date_suggestion: Suggested due date relative to today ("3 days", "1 week", "2 weeks", etc.) or null
@@ -452,7 +452,7 @@ Write a professional summary highlighting progress, key activities, and next ste
                 valid_suggestions.append({
                     'title': str(task.get('title', ''))[:100],
                     'description': str(task.get('description', ''))[:500],
-                    'priority': task.get('priority', 'medium') if task.get('priority') in ['low', 'medium', 'high', 'critical'] else 'medium',
+                    'priority': task.get('priority', 'medium') if task.get('priority') in ['low', 'medium', 'high', 'urgent'] else 'medium',
                     'estimated_hours': int(task.get('estimated_hours', 4)) if isinstance(task.get('estimated_hours'), (int, float)) else 4
                 })
         
@@ -484,7 +484,7 @@ Write a professional summary highlighting progress, key activities, and next ste
         return {
             'title': str(task_data.get('title', 'New Task'))[:100],
             'description': str(task_data.get('description', ''))[:500],
-            'priority': task_data.get('priority', 'medium') if task_data.get('priority') in ['low', 'medium', 'high', 'critical'] else 'medium',
+            'priority': task_data.get('priority', 'medium') if task_data.get('priority') in ['low', 'medium', 'high', 'urgent'] else 'medium',
             'estimated_hours': int(task_data.get('estimated_hours', 2)) if isinstance(task_data.get('estimated_hours'), (int, float)) else 2,
             'tags': (task_data.get('tags', []) if isinstance(task_data.get('tags'), list) else [])[:5],
             'due_date_suggestion': str(task_data.get('due_date_suggestion', '')) if task_data.get('due_date_suggestion') else None
@@ -501,7 +501,7 @@ Write a professional summary highlighting progress, key activities, and next ste
                 valid_tasks.append({
                     'title': str(task.get('title', ''))[:200],
                     'description': str(task.get('description', ''))[:1000],
-                    'priority': task.get('priority', 'medium') if task.get('priority') in ['low', 'medium', 'high', 'critical'] else 'medium',
+                    'priority': task.get('priority', 'medium') if task.get('priority') in ['low', 'medium', 'high', 'urgent'] else 'medium',
                     'estimated_hours': float(task.get('estimated_hours', 2)) if isinstance(task.get('estimated_hours'), (int, float)) and task.get('estimated_hours') > 0 else 2.0,
                     'rationale': str(task.get('rationale', 'AI-generated task'))[:300]
                 })
@@ -692,7 +692,7 @@ Write a professional summary highlighting progress, key activities, and next ste
         if not tasks:
             return []
         
-        priority_map = {'critical': 4, 'high': 3, 'medium': 2, 'low': 1}
+        priority_map = {'urgent': 4, 'high': 3, 'medium': 2, 'low': 1}
         
         def task_score(task):
             score = 0
@@ -741,7 +741,7 @@ Analyze this task and create 3-7 subtasks that together accomplish the main task
 - title: Clear, actionable title (max 80 chars)
 - description: What needs to be done (1-2 sentences)
 - estimated_hours: Realistic time estimate
-- priority: "low", "medium", "high", or "critical"
+- priority: "low", "medium", "high", or "urgent"
 - dependencies: Array of subtask indices this depends on (0-indexed, empty array if no dependencies)
 - skills_required: Array of skills needed (e.g., ["frontend", "api", "testing"])
 
@@ -870,7 +870,7 @@ For each task provide:
 - title: Clear, actionable task title
 - description: Context from the meeting (2-3 sentences)
 - assignee: Person mentioned or "unassigned"
-- priority: "low", "medium", "high", or "critical" based on discussion
+- priority: "low", "medium", "high", or "urgent" based on discussion
 - estimated_hours: Your best guess based on task scope
 - due_date_mentioned: Specific date if mentioned, or null
 - relevant_context: Key quotes or context from meeting
@@ -941,8 +941,8 @@ Return ONLY a JSON object:
         priority = task_data.get('priority', 'medium')
         estimated_hours = task_data.get('estimated_hours', 4)
         
-        # Simple calculation: high priority = 2 days, medium = 5 days, low = 7 days
-        days_map = {'critical': 1, 'high': 2, 'medium': 5, 'low': 7}
+        # Simple calculation: urgent = 1 day, high priority = 2 days, medium = 5 days, low = 7 days
+        days_map = {'urgent': 1, 'high': 2, 'medium': 5, 'low': 7}
         days_ahead = days_map.get(priority, 5)
         
         # Adjust for estimated hours

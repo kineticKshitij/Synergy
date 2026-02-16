@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
-import { useNavigate } from 'react-router';
-import { Columns3, Filter, Calendar, User, AlertCircle, ChevronDown } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router';
+import { Columns3, Filter, Calendar, User, AlertCircle, ChevronDown, ArrowLeft } from 'lucide-react';
 import api from '~/services/api';
 import { useAuth } from '~/contexts/AuthContext';
 
@@ -31,21 +31,22 @@ interface Project {
 }
 
 const COLUMNS = {
-  todo: { title: 'To Do', color: 'bg-gray-100 border-gray-300' },
-  in_progress: { title: 'In Progress', color: 'bg-blue-50 border-blue-300' },
-  review: { title: 'In Review', color: 'bg-yellow-50 border-yellow-300' },
-  done: { title: 'Done', color: 'bg-green-50 border-green-300' }
+  todo: { title: 'To Do', color: 'bg-slate-100 border-slate-400', headerBg: 'bg-slate-200' },
+  in_progress: { title: 'In Progress', color: 'bg-blue-100 border-blue-400', headerBg: 'bg-blue-200' },
+  review: { title: 'In Review', color: 'bg-amber-100 border-amber-400', headerBg: 'bg-amber-200' },
+  done: { title: 'Done', color: 'bg-emerald-100 border-emerald-400', headerBg: 'bg-emerald-200' }
 } as const;
 
 const PRIORITY_COLORS = {
-  low: 'bg-gray-200 text-gray-700',
-  medium: 'bg-blue-200 text-blue-700',
-  high: 'bg-orange-200 text-orange-700',
-  urgent: 'bg-red-200 text-red-700'
+  low: 'bg-gray-100 text-gray-700 border-gray-300',
+  medium: 'bg-blue-100 text-blue-700 border-blue-300',
+  high: 'bg-orange-100 text-orange-700 border-orange-300',
+  urgent: 'bg-red-100 text-red-700 border-red-300'
 };
 
 export default function KanbanBoard() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -60,6 +61,18 @@ export default function KanbanBoard() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Initialize filter from URL params
+  useEffect(() => {
+    const projectParam = searchParams.get('project');
+    if (projectParam) {
+      const projectId = parseInt(projectParam);
+      if (!isNaN(projectId)) {
+        setSelectedProject(projectId);
+        setShowFilters(true);
+      }
+    }
+  }, [searchParams]);
 
   const fetchData = async () => {
     try {
@@ -116,9 +129,15 @@ export default function KanbanBoard() {
 
   const getFilteredTasks = () => {
     return tasks.filter(task => {
-      if (selectedProject && task.project.id !== selectedProject) return false;
-      if (selectedAssignee === 'me' && task.assigned_to?.id !== user?.id) return false;
-      if (selectedAssignee === 'unassigned' && task.assigned_to !== null) return false;
+      if (selectedProject && task.project.id !== selectedProject) {
+        return false;
+      }
+      if (selectedAssignee === 'me' && task.assigned_to?.id !== user?.id) {
+        return false;
+      }
+      if (selectedAssignee === 'unassigned' && task.assigned_to !== null) {
+        return false;
+      }
       return true;
     });
   };
@@ -143,67 +162,110 @@ export default function KanbanBoard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading Kanban board...</p>
+          <div className="relative">
+            <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-200 border-t-blue-600 mx-auto mb-4"></div>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <Columns3 className="w-6 h-6 text-blue-600" />
+            </div>
+          </div>
+          <p className="text-gray-700 font-medium">Loading Kanban board...</p>
+          <p className="text-gray-500 text-sm mt-1">Fetching your tasks</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       {/* Header */}
-      <div className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-[1920px] mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Columns3 className="w-8 h-8 text-blue-600" />
+      <div className="bg-white shadow-md border-b border-gray-200">
+        <div className="max-w-[1920px] mx-auto px-6 py-6">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => navigate('/team-dashboard')}
+                className="p-3 bg-gray-100 hover:bg-gray-200 rounded-xl shadow-sm hover:shadow-md transition-all group"
+                title="Back to Dashboard"
+              >
+                <ArrowLeft className="w-6 h-6 text-gray-700 group-hover:text-gray-900" />
+              </button>
+              <div className="p-3 bg-blue-600 rounded-xl shadow-lg">
+                <Columns3 className="w-7 h-7 text-white" />
+              </div>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Kanban Board</h1>
-                <p className="text-sm text-gray-600">Drag tasks to update their status</p>
+                <h1 className="text-3xl font-bold text-gray-900">Kanban Board</h1>
+                <p className="text-sm text-gray-600 mt-1">Drag tasks to update their status</p>
               </div>
             </div>
             
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all shadow-sm hover:shadow-md font-medium"
             >
               <Filter className="w-4 h-4" />
-              Filters
+              {showFilters ? 'Hide Filters' : 'Show Filters'}
               <ChevronDown className={`w-4 h-4 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
             </button>
           </div>
 
           {/* Filters */}
           {showFilters && (
-            <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200 flex gap-4">
-              <div className="flex-1">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Project</label>
-                <select
-                  value={selectedProject || ''}
-                  onChange={(e) => setSelectedProject(e.target.value ? parseInt(e.target.value) : null)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">All Projects</option>
-                  {projects.map(project => (
-                    <option key={project.id} value={project.id}>{project.name}</option>
-                  ))}
-                </select>
+            <div className="mt-6 p-5 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-200 shadow-sm">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-800 mb-2">
+                    <span className="flex items-center gap-2">
+                      📁 Project
+                    </span>
+                  </label>
+                  <select
+                    value={selectedProject || ''}
+                    onChange={(e) => setSelectedProject(e.target.value ? parseInt(e.target.value) : null)}
+                    className="w-full px-4 py-3 bg-white border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm hover:border-gray-400 font-medium text-gray-700"
+                  >
+                    <option value="">All Projects</option>
+                    {projects.map(project => (
+                      <option key={project.id} value={project.id}>{project.name}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-semibold text-gray-800 mb-2">
+                    <span className="flex items-center gap-2">
+                      <User className="w-4 h-4" /> Assignee
+                    </span>
+                  </label>
+                  <select
+                    value={selectedAssignee}
+                    onChange={(e) => setSelectedAssignee(e.target.value)}
+                    className="w-full px-4 py-3 bg-white border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm hover:border-gray-400 font-medium text-gray-700"
+                  >
+                    <option value="all">All Team Members</option>
+                    <option value="me">Assigned to Me</option>
+                    <option value="unassigned">Unassigned</option>
+                  </select>
+                </div>
               </div>
               
-              <div className="flex-1">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Assignee</label>
-                <select
-                  value={selectedAssignee}
-                  onChange={(e) => setSelectedAssignee(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="all">All Team Members</option>
-                  <option value="me">Assigned to Me</option>
-                  <option value="unassigned">Unassigned</option>
-                </select>
+              {/* Filter Status */}
+              <div className="mt-4 pt-4 border-t-2 border-blue-200 flex items-center justify-between text-sm">
+                <div className="text-gray-700">
+                  <span className="font-semibold">Showing {getFilteredTasks().length}</span> of {tasks.length} tasks
+                </div>
+                {(selectedProject || selectedAssignee !== 'all') && (
+                  <button
+                    onClick={() => {
+                      setSelectedProject(null);
+                      setSelectedAssignee('all');
+                    }}
+                    className="px-3 py-1 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium"
+                  >
+                    Clear Filters
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -213,27 +275,32 @@ export default function KanbanBoard() {
       {/* Error Message */}
       {error && (
         <div className="max-w-[1920px] mx-auto px-6 py-4">
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-3">
-            <AlertCircle className="w-5 h-5 text-red-600" />
-            <p className="text-red-700">{error}</p>
+          <div className="bg-gradient-to-r from-red-50 to-red-100 border-2 border-red-300 rounded-xl p-4 flex items-center gap-3 shadow-md">
+            <div className="flex-shrink-0 w-10 h-10 bg-red-200 rounded-full flex items-center justify-center">
+              <AlertCircle className="w-6 h-6 text-red-700" />
+            </div>
+            <div>
+              <p className="text-red-800 font-semibold">Error</p>
+              <p className="text-red-700 text-sm">{error}</p>
+            </div>
           </div>
         </div>
       )}
 
       {/* Kanban Board */}
-      <div className="max-w-[1920px] mx-auto px-6 py-6">
+      <div className="max-w-[1920px] mx-auto px-6 py-8">
         <DragDropContext onDragEnd={handleDragEnd}>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {Object.entries(COLUMNS).map(([status, { title, color }]) => {
+            {Object.entries(COLUMNS).map(([status, { title, color, headerBg }]) => {
               const columnTasks = getTasksByStatus(status as Task['status']);
               
               return (
                 <div key={status} className="flex flex-col">
                   {/* Column Header */}
-                  <div className={`${color} border-2 rounded-t-lg px-4 py-3`}>
+                  <div className={`${headerBg} border-2 ${color.split(' ')[1]} rounded-t-xl px-4 py-4 shadow-sm`}>
                     <div className="flex items-center justify-between">
-                      <h3 className="font-semibold text-gray-900">{title}</h3>
-                      <span className="bg-white px-2 py-1 rounded-full text-sm font-medium text-gray-700">
+                      <h3 className="font-bold text-gray-900 text-lg">{title}</h3>
+                      <span className="bg-white px-3 py-1 rounded-full text-sm font-bold text-gray-800 shadow-sm border border-gray-300">
                         {columnTasks.length}
                       </span>
                     </div>
@@ -245,8 +312,8 @@ export default function KanbanBoard() {
                       <div
                         ref={provided.innerRef}
                         {...provided.droppableProps}
-                        className={`flex-1 bg-gray-100 border-2 border-t-0 rounded-b-lg p-3 min-h-[500px] transition-colors ${
-                          snapshot.isDraggingOver ? 'bg-blue-50 border-blue-300' : 'border-gray-200'
+                        className={`flex-1 ${color} border-2 border-t-0 rounded-b-xl p-4 min-h-[500px] transition-all duration-200 ${
+                          snapshot.isDraggingOver ? 'bg-blue-50 border-blue-400 shadow-inner' : ''
                         }`}
                       >
                         <div className="space-y-3">
@@ -265,39 +332,41 @@ export default function KanbanBoard() {
                                     {...provided.draggableProps}
                                     {...provided.dragHandleProps}
                                     onClick={() => navigate(`/team-dashboard/task/${task.id}`)}
-                                    className={`bg-white rounded-lg p-4 shadow-sm border border-gray-200 cursor-pointer hover:shadow-md transition-shadow ${
-                                      snapshot.isDragging ? 'shadow-lg ring-2 ring-blue-400' : ''
+                                    className={`bg-white rounded-xl p-4 shadow-md border-2 border-gray-200 cursor-pointer hover:shadow-xl hover:border-blue-300 transition-all duration-200 ${
+                                      snapshot.isDragging ? 'shadow-2xl ring-4 ring-blue-400 rotate-3 scale-105' : ''
                                     }`}
                                   >
                                     {/* Task Title */}
-                                    <h4 className="font-medium text-gray-900 mb-2 line-clamp-2">
+                                    <h4 className="font-bold text-gray-900 mb-2 line-clamp-2 text-base">
                                       {task.title}
                                     </h4>
 
                                     {/* Project Name */}
-                                    <p className="text-xs text-gray-600 mb-2">
-                                      📁 {task.project.name}
-                                    </p>
+                                    <div className="flex items-center gap-1.5 mb-3">
+                                      <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-1 rounded-md border border-gray-200">
+                                        📁 {task.project.name}
+                                      </span>
+                                    </div>
 
                                     {/* Description Preview */}
                                     {task.description && (
-                                      <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+                                      <p className="text-sm text-gray-600 mb-4 line-clamp-2 leading-relaxed">
                                         {task.description}
                                       </p>
                                     )}
 
                                     {/* Task Meta */}
-                                    <div className="flex items-center justify-between text-xs">
-                                      <div className="flex items-center gap-2">
+                                    <div className="flex items-center justify-between flex-wrap gap-2">
+                                      <div className="flex items-center gap-2 flex-wrap">
                                         {/* Priority Badge */}
-                                        <span className={`px-2 py-1 rounded-full font-medium ${PRIORITY_COLORS[task.priority]}`}>
-                                          {task.priority}
+                                        <span className={`px-2.5 py-1 rounded-lg text-xs font-bold border ${PRIORITY_COLORS[task.priority]}`}>
+                                          {task.priority.toUpperCase()}
                                         </span>
                                         
                                         {/* Due Date */}
                                         {dueDate && (
-                                          <span className={`flex items-center gap-1 ${dueDate.class}`}>
-                                            <Calendar className="w-3 h-3" />
+                                          <span className={`flex items-center gap-1 text-xs font-semibold ${dueDate.class}`}>
+                                            <Calendar className="w-3.5 h-3.5" />
                                             {dueDate.text}
                                           </span>
                                         )}
@@ -306,7 +375,7 @@ export default function KanbanBoard() {
                                       {/* Assignee Avatar */}
                                       {task.assigned_to ? (
                                         <div
-                                          className="w-7 h-7 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs font-semibold"
+                                          className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-700 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md ring-2 ring-white"
                                           title={task.assigned_to.full_name || task.assigned_to.username}
                                         >
                                           {(task.assigned_to.full_name || task.assigned_to.username)
@@ -317,21 +386,21 @@ export default function KanbanBoard() {
                                             .slice(0, 2)}
                                         </div>
                                       ) : (
-                                        <div className="w-7 h-7 bg-gray-300 rounded-full flex items-center justify-center" title="Unassigned">
-                                          <User className="w-4 h-4 text-gray-600" />
+                                        <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center shadow-sm border-2 border-gray-300" title="Unassigned">
+                                          <User className="w-4 h-4 text-gray-500" />
                                         </div>
                                       )}
                                     </div>
 
                                     {/* Time Tracking */}
                                     {(task.estimated_hours || task.actual_hours) && (
-                                      <div className="mt-3 pt-3 border-t border-gray-200 text-xs text-gray-600">
+                                      <div className="mt-4 pt-3 border-t-2 border-gray-100 text-xs font-medium text-gray-600">
                                         {task.estimated_hours && (
-                                          <span>Est: {task.estimated_hours}h</span>
+                                          <span className="bg-blue-50 px-2 py-1 rounded">Est: {task.estimated_hours}h</span>
                                         )}
-                                        {task.estimated_hours && task.actual_hours && <span> • </span>}
+                                        {task.estimated_hours && task.actual_hours && <span className="mx-1">•</span>}
                                         {task.actual_hours && (
-                                          <span>Actual: {task.actual_hours}h</span>
+                                          <span className="bg-green-50 px-2 py-1 rounded">Actual: {task.actual_hours}h</span>
                                         )}
                                       </div>
                                     )}
@@ -344,8 +413,9 @@ export default function KanbanBoard() {
                           
                           {/* Empty State */}
                           {columnTasks.length === 0 && (
-                            <div className="text-center py-8 text-gray-400">
-                              <p className="text-sm">No tasks</p>
+                            <div className="text-center py-12 text-gray-400">
+                              <div className="text-4xl mb-2">📋</div>
+                              <p className="text-sm font-medium">No tasks</p>
                             </div>
                           )}
                         </div>
