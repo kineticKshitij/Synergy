@@ -10,8 +10,9 @@ import { AITaskBreakdownModal } from '~/components/AITaskBreakdownModal';
 import { AIMeetingNotesExtractor } from '~/components/AIMeetingNotesExtractor';
 import { AITaskGeneratorModal } from '~/components/AITaskGeneratorModal';
 import CalendarView from '~/components/CalendarView';
+import AnalyticsDashboard from '~/components/AnalyticsDashboard';
 import { useKeyboardShortcuts } from '~/hooks/useKeyboardShortcuts';
-import { Eye, X, FileText, Send, MessageSquare, Activity, Download, List, Calendar } from 'lucide-react';
+import { Eye, X, FileText, Send, MessageSquare, Activity, Download, List, Calendar, BarChart3 } from 'lucide-react';
 
 interface Project {
     id: number;
@@ -56,7 +57,7 @@ function ProjectDetailsContent() {
     const [project, setProject] = useState<Project | null>(null);
     const [tasks, setTasks] = useState<Task[]>([]);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<'overview' | 'tasks' | 'team' | 'activity' | 'messages'>('overview');
+    const [activeTab, setActiveTab] = useState<'overview' | 'tasks' | 'team' | 'activity' | 'messages' | 'analytics'>('overview');
     const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
     const [editingTask, setEditingTask] = useState<Task | null>(null);
     const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
@@ -472,16 +473,24 @@ function ProjectDetailsContent() {
             <div className="border-b border-gray-800">
                 <div className="max-w-7xl mx-auto px-6">
                     <div className="flex gap-8">
-                        {['overview', 'tasks', 'team', 'activity', 'messages'].map((tab) => (
+                        {[
+                            { key: 'overview', label: 'Overview' },
+                            { key: 'tasks', label: 'Tasks' },
+                            { key: 'team', label: 'Team' },
+                            { key: 'activity', label: 'Activity' },
+                            { key: 'messages', label: 'Messages' },
+                            { key: 'analytics', label: 'Analytics', icon: <BarChart3 className="w-4 h-4" /> },
+                        ].map((tab) => (
                             <button
-                                key={tab}
-                                onClick={() => setActiveTab(tab as any)}
-                                className={`py-4 px-2 border-b-2 transition-colors ${activeTab === tab
+                                key={tab.key}
+                                onClick={() => setActiveTab(tab.key as any)}
+                                className={`py-4 px-2 border-b-2 transition-colors flex items-center gap-2 ${activeTab === tab.key
                                     ? 'border-blue-500 text-white'
                                     : 'border-transparent text-gray-400 hover:text-white'
                                     }`}
                             >
-                                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                                {tab.icon}
+                                {tab.label}
                             </button>
                         ))}
                     </div>
@@ -869,6 +878,14 @@ function ProjectDetailsContent() {
                             </div>
                         </div>
                     </div>
+                )}
+
+                {activeTab === 'analytics' && (
+                    <AnalyticsDashboard
+                        projectId={Number(id)}
+                        tasks={tasks}
+                        teamMembers={project?.team_members || []}
+                    />
                 )}
             </div>
 
