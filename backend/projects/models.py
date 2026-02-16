@@ -167,6 +167,38 @@ class Task(models.Model):
         return f"{self.project.name} - {self.title}"
 
 
+class Subtask(models.Model):
+    """Subtask/Checklist item for tasks"""
+    
+    task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='subtasks')
+    title = models.CharField(max_length=300)
+    is_completed = models.BooleanField(default=False)
+    order = models.IntegerField(default=0, help_text="Order of subtask in the list")
+    assigned_to = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, 
+                                    related_name='assigned_subtasks')
+    completed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, 
+                                     related_name='completed_subtasks')
+    completed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['order', 'created_at']
+    
+    def __str__(self):
+        status = "✓" if self.is_completed else "○"
+        return f"{status} {self.title}"
+    
+    def save(self, *args, **kwargs):
+        """Mark completion timestamp when subtask is completed"""
+        if self.is_completed and not self.completed_at:
+            self.completed_at = timezone.now()
+        elif not self.is_completed and self.completed_at:
+            self.completed_at = None
+            self.completed_by = None
+        super().save(*args, **kwargs)
+
+
 class Comment(models.Model):
     """Comment model for task discussions"""
     

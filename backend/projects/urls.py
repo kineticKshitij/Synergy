@@ -5,6 +5,7 @@ from . import views
 router = DefaultRouter()
 router.register(r'projects', views.ProjectViewSet, basename='project')
 router.register(r'tasks', views.TaskViewSet, basename='task')
+router.register(r'subtasks', views.SubtaskViewSet, basename='subtask')
 router.register(r'activities', views.ProjectActivityViewSet, basename='activity')
 router.register(r'attachments', views.TaskAttachmentViewSet, basename='attachment')
 router.register(r'messages', views.ProjectMessageViewSet, basename='message')

@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth.models import User
 from .models import (
     Project, Task, Comment, ProjectActivity, TaskAttachment, ProjectMessage,
-    Milestone, ProjectTemplate, TaskTemplate, MilestoneTemplate
+    Milestone, ProjectTemplate, TaskTemplate, MilestoneTemplate, Subtask
 )
 
 
@@ -25,6 +25,31 @@ class ProjectBasicSerializer(serializers.ModelSerializer):
     class Meta:
         model = Project
         fields = ['id', 'name']
+
+
+class SubtaskSerializer(serializers.ModelSerializer):
+    """Serializer for subtasks/checklist items"""
+    assigned_to = UserSerializer(read_only=True)
+    assigned_to_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
+    completed_by = UserSerializer(read_only=True)
+    
+    class Meta:
+        model = Subtask
+        fields = [
+            'id', 'task', 'title', 'is_completed', 'order',
+            'assigned_to', 'assigned_to_id', 'completed_by',
+            'completed_at', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['completed_at', 'created_at', 'updated_at', 'completed_by']
+    
+    def update(self, instance, validated_data):
+        """Handle completion tracking"""
+        if 'is_completed' in validated_data and validated_data['is_completed']:
+            # Set completed_by to the user making the request
+            request = self.context.get('request')
+            if request and hasattr(request, 'user'):
+                instance.completed_by = request.user
+        return super().update(instance, validated_data)
 
 
 class ProjectSerializer(serializers.ModelSerializer):
@@ -68,6 +93,8 @@ class TaskSerializer(serializers.ModelSerializer):
     total_time_logged = serializers.SerializerMethodField()
     comment_count = serializers.SerializerMethodField()
     has_attachments = serializers.SerializerMethodField()
+    subtasks = SubtaskSerializer(many=True, read_only=True)
+    subtask_progress = serializers.SerializerMethodField()
     
     class Meta:
         model = Task
@@ -77,6 +104,7 @@ class TaskSerializer(serializers.ModelSerializer):
             'depends_on', 'blocking_tasks', 'blocked_by', 'can_start',
             'due_date', 'estimated_hours', 'actual_hours', 'impact', 
             'time_logs', 'active_timer', 'total_time_logged',
+            'subtasks', 'subtask_progress',
             'created_at', 'updated_at', 'completed_at', 'comment_count', 'has_attachments'
         ]
         read_only_fields = ['created_at', 'updated_at', 'time_logs', 'active_timer']
@@ -93,6 +121,26 @@ class TaskSerializer(serializers.ModelSerializer):
     def get_total_time_logged(self, obj):
         """Get total time logged in hours"""
         return obj.get_total_time_logged()
+    
+    def get_comment_count(self, obj):
+        """Get number of comments"""
+        return obj.comments.count()
+    
+    def get_has_attachments(self, obj):
+        """Check if task has attachments"""
+        return obj.attachments.exists()
+    
+    def get_subtask_progress(self, obj):
+        """Calculate subtask completion progress"""
+        subtasks = obj.subtasks.all()
+        if not subtasks.exists():
+            return {'total': 0, 'completed': 0, 'percentage': 0}
+        
+        total = subtasks.count()
+        completed = subtasks.filter(is_completed=True).count()
+        percentage = int((completed / total) * 100) if total > 0 else 0
+        
+        return {'total': total, 'completed': completed, 'percentage': percentage}
     
     def create(self, validated_data):
         """Handle creation with multiple assignments and dependencies"""

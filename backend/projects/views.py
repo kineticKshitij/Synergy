@@ -7,13 +7,13 @@ from django.shortcuts import get_object_or_404
 from django.contrib.auth.models import User
 from django.db import models
 
-from .models import Project, Task, Comment, ProjectActivity, TaskAttachment, ProjectMessage
+from .models import Project, Task, Comment, ProjectActivity, TaskAttachment, ProjectMessage, Subtask
 from .serializers import (
     ProjectSerializer, TaskSerializer, CommentSerializer,
     ProjectActivitySerializer, TaskAttachmentSerializer,
     ProjectMessageSerializer, TeamMemberDashboardSerializer,
     MilestoneSerializer, ProjectTemplateSerializer, TaskTemplateSerializer,
-    MilestoneTemplateSerializer
+    MilestoneTemplateSerializer, SubtaskSerializer
 )
 
 
@@ -460,6 +460,117 @@ class TaskViewSet(viewsets.ModelViewSet):
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+class SubtaskViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for Subtask/Checklist CRUD operations
+    """
+    serializer_class = SubtaskSerializer
+    permission_classes = [IsAuthenticated, IsProjectOwner]
+    
+    def get_queryset(self):
+        """Only return subtasks from tasks user has access to"""
+        user = self.request.user
+        queryset = Subtask.objects.filter(
+            models.Q(task__project__owner=user) | models.Q(task__project__team_members=user)
+        ).distinct().select_related('task', 'assigned_to', 'completed_by')
+        
+        # Filter by task if provided
+        task_id = self.request.query_params.get('task', None)
+        if task_id is not None:
+            queryset = queryset.filter(task_id=task_id)
+        
+        return queryset
+    
+    def get_serializer_context(self):
+        """Add request to serializer context for completed_by tracking"""
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
+    
+    @action(detail=True, methods=['post'])
+    def toggle_complete(self, request, pk=None):
+        """Toggle subtask completion status"""
+        subtask = self.get_object()
+        subtask.is_completed = not subtask.is_completed
+        
+        if subtask.is_completed:
+            subtask.completed_by = request.user
+        else:
+            subtask.completed_by = None
+        
+        subtask.save()
+        serializer = self.get_serializer(subtask)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['post'])
+    def bulk_create(self, request):
+        """Create multiple subtasks at once"""
+        task_id = request.data.get('task_id')
+        subtask_titles = request.data.get('subtasks', [])
+        
+        if not task_id or not subtask_titles:
+            return Response(
+                {'error': 'task_id and subtasks are required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Verify user has access to the task
+        try:
+            task = Task.objects.get(
+                id=task_id,
+                project__in=Project.objects.filter(
+                    models.Q(owner=request.user) | models.Q(team_members=request.user)
+                )
+            )
+        except Task.DoesNotExist:
+            return Response(
+                {'error': 'Task not found or access denied'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Create subtasks
+        subtasks = []
+        for idx, title in enumerate(subtask_titles):
+            if isinstance(title, str) and title.strip():
+                subtask = Subtask.objects.create(
+                    task=task,
+                    title=title.strip(),
+                    order=idx
+                )
+                subtasks.append(subtask)
+        
+        serializer = self.get_serializer(subtasks, many=True)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+    @action(detail=False, methods=['post'])
+    def reorder(self, request):
+        """Reorder subtasks"""
+        subtask_orders = request.data.get('orders', [])  # [{id: 1, order: 0}, ...]
+        
+        if not subtask_orders:
+            return Response(
+                {'error': 'orders array is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        subtasks = []
+        for item in subtask_orders:
+            try:
+                subtask = Subtask.objects.get(id=item['id'])
+                # Verify access
+                if not (subtask.task.project.owner == request.user or 
+                        request.user in subtask.task.project.team_members.all()):
+                    continue
+                subtask.order = item['order']
+                subtask.save(update_fields=['order'])
+                subtasks.append(subtask)
+            except (Subtask.DoesNotExist, KeyError):
+                continue
+        
+        serializer = self.get_serializer(subtasks, many=True)
+        return Response(serializer.data)
 
 
 class ProjectActivityViewSet(viewsets.ReadOnlyModelViewSet):
