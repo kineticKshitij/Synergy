@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { X, Sparkles, Loader2, Check, AlertCircle } from 'lucide-react';
+import tokenStorage from '~/services/tokenStorage';
 
 interface AITaskGeneratorModalProps {
   isOpen: boolean;
@@ -42,7 +43,14 @@ export function AITaskGeneratorModal({
     setShowResults(false);
 
     try {
-      const token = localStorage.getItem('access_token');
+      const token = tokenStorage.getAccessToken();
+      
+      if (!token) {
+        setError('You must be logged in to generate tasks');
+        setGenerating(false);
+        return;
+      }
+      
       const response = await fetch('/api/ai/generate_tasks/', {
         method: 'POST',
         headers: {
@@ -102,7 +110,13 @@ export function AITaskGeneratorModal({
     setError('');
 
     try {
-      const token = localStorage.getItem('access_token');
+      const token = tokenStorage.getAccessToken();
+      
+      if (!token) {
+        setError('You must be logged in to create tasks');
+        setCreating(false);
+        return;
+      }
       
       // Create each selected task individually
       const createPromises = selectedTasks.map(task =>
