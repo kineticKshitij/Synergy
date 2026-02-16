@@ -8,6 +8,7 @@ import { Navbar } from '~/components/Navbar';
 import InviteTeamMemberModal from '~/components/InviteTeamMemberModal';
 import { AITaskBreakdownModal } from '~/components/AITaskBreakdownModal';
 import { AIMeetingNotesExtractor } from '~/components/AIMeetingNotesExtractor';
+import { AITaskGeneratorModal } from '~/components/AITaskGeneratorModal';
 import { useKeyboardShortcuts } from '~/hooks/useKeyboardShortcuts';
 import { Eye, X, FileText, Send, MessageSquare, Activity, Download } from 'lucide-react';
 
@@ -67,6 +68,7 @@ function ProjectDetailsContent() {
     const [showBreakdownModal, setShowBreakdownModal] = useState(false);
     const [selectedTaskForBreakdown, setSelectedTaskForBreakdown] = useState<Task | null>(null);
     const [showMeetingNotesModal, setShowMeetingNotesModal] = useState(false);
+    const [showAITaskGenerator, setShowAITaskGenerator] = useState(false);
 
     useEffect(() => {
         loadProject();
@@ -563,25 +565,42 @@ function ProjectDetailsContent() {
                     <div>
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-2xl font-bold">Tasks</h2>
-                            <button
-                                onClick={() => openTaskModal()}
-                                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors"
-                            >
-                                ➕ New Task
-                            </button>
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => setShowAITaskGenerator(true)}
+                                    className="px-4 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 rounded-lg font-medium transition-colors flex items-center gap-2"
+                                    title="Generate tasks with AI"
+                                >
+                                    ✨ AI Generate
+                                </button>
+                                <button
+                                    onClick={() => openTaskModal()}
+                                    className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors"
+                                >
+                                    ➕ New Task
+                                </button>
+                            </div>
                         </div>
 
                         {tasks.length === 0 ? (
                             <div className="text-center py-12 bg-gray-800/50 border border-gray-700 rounded-lg">
                                 <div className="text-6xl mb-4">📋</div>
                                 <h3 className="text-xl font-semibold mb-2">No tasks yet</h3>
-                                <p className="text-gray-400 mb-6">Get started by creating your first task</p>
-                                <button
-                                    onClick={() => openTaskModal()}
-                                    className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors"
-                                >
-                                    Create Task
-                                </button>
+                                <p className="text-gray-400 mb-6">Get started by creating your first task or let AI generate them for you</p>
+                                <div className="flex gap-3 justify-center">
+                                    <button
+                                        onClick={() => setShowAITaskGenerator(true)}
+                                        className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 rounded-lg font-medium transition-colors flex items-center gap-2"
+                                    >
+                                        ✨ Generate with AI
+                                    </button>
+                                    <button
+                                        onClick={() => openTaskModal()}
+                                        className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors"
+                                    >
+                                        Create Task
+                                    </button>
+                                </div>
                             </div>
                         ) : (
                             <div className="space-y-3">
@@ -876,6 +895,20 @@ function ProjectDetailsContent() {
                     projectId={Number(id)}
                     onTasksExtracted={handleExtractedTasks}
                     onClose={() => setShowMeetingNotesModal(false)}
+                />
+            )}
+
+            {/* AI Task Generator */}
+            {showAITaskGenerator && project && (
+                <AITaskGeneratorModal
+                    isOpen={showAITaskGenerator}
+                    onClose={() => setShowAITaskGenerator(false)}
+                    projectId={Number(id)}
+                    projectName={project.name}
+                    onTasksGenerated={() => {
+                        loadTasks();
+                        loadActivities();
+                    }}
                 />
             )}
         </div>
