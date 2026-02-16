@@ -9,8 +9,9 @@ import InviteTeamMemberModal from '~/components/InviteTeamMemberModal';
 import { AITaskBreakdownModal } from '~/components/AITaskBreakdownModal';
 import { AIMeetingNotesExtractor } from '~/components/AIMeetingNotesExtractor';
 import { AITaskGeneratorModal } from '~/components/AITaskGeneratorModal';
+import CalendarView from '~/components/CalendarView';
 import { useKeyboardShortcuts } from '~/hooks/useKeyboardShortcuts';
-import { Eye, X, FileText, Send, MessageSquare, Activity, Download } from 'lucide-react';
+import { Eye, X, FileText, Send, MessageSquare, Activity, Download, List, Calendar } from 'lucide-react';
 
 interface Project {
     id: number;
@@ -69,6 +70,7 @@ function ProjectDetailsContent() {
     const [selectedTaskForBreakdown, setSelectedTaskForBreakdown] = useState<Task | null>(null);
     const [showMeetingNotesModal, setShowMeetingNotesModal] = useState(false);
     const [showAITaskGenerator, setShowAITaskGenerator] = useState(false);
+    const [taskViewMode, setTaskViewMode] = useState<'list' | 'calendar'>('list');
 
     useEffect(() => {
         loadProject();
@@ -563,7 +565,36 @@ function ProjectDetailsContent() {
                 {activeTab === 'tasks' && (
                     <div>
                         <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-2xl font-bold">Tasks</h2>
+                            <div className="flex items-center gap-4">
+                                <h2 className="text-2xl font-bold">Tasks</h2>
+                                {/* View Toggle */}
+                                <div className="flex bg-gray-800 rounded-lg p-1 border border-gray-700">
+                                    <button
+                                        onClick={() => setTaskViewMode('list')}
+                                        className={`px-4 py-2 rounded-md flex items-center gap-2 transition-colors ${
+                                            taskViewMode === 'list'
+                                                ? 'bg-blue-600 text-white'
+                                                : 'text-gray-400 hover:text-white'
+                                        }`}
+                                        title="List View"
+                                    >
+                                        <List className="w-4 h-4" />
+                                        List
+                                    </button>
+                                    <button
+                                        onClick={() => setTaskViewMode('calendar')}
+                                        className={`px-4 py-2 rounded-md flex items-center gap-2 transition-colors ${
+                                            taskViewMode === 'calendar'
+                                                ? 'bg-blue-600 text-white'
+                                                : 'text-gray-400 hover:text-white'
+                                        }`}
+                                        title="Calendar View"
+                                    >
+                                        <Calendar className="w-4 h-4" />
+                                        Calendar
+                                    </button>
+                                </div>
+                            </div>
                             <div className="flex gap-3">
                                 <button
                                     onClick={() => setShowAITaskGenerator(true)}
@@ -601,7 +632,7 @@ function ProjectDetailsContent() {
                                     </button>
                                 </div>
                             </div>
-                        ) : (
+                        ) : taskViewMode === 'list' ? (
                             <div className="space-y-3">
                                 {tasks.map((task) => (
                                     <div
@@ -675,6 +706,13 @@ function ProjectDetailsContent() {
                                         </div>
                                     </div>
                                 ))}
+                            </div>
+                        ) : (
+                            <div className="bg-gray-900 border border-gray-700 rounded-lg overflow-hidden">
+                                <CalendarView
+                                    tasks={tasks}
+                                    onTaskClick={(task) => openTaskModal(task)}
+                                />
                             </div>
                         )}
                     </div>
