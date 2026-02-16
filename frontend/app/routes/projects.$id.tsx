@@ -11,8 +11,9 @@ import { AIMeetingNotesExtractor } from '~/components/AIMeetingNotesExtractor';
 import { AITaskGeneratorModal } from '~/components/AITaskGeneratorModal';
 import CalendarView from '~/components/CalendarView';
 import AnalyticsDashboard from '~/components/AnalyticsDashboard';
+import SprintPlanningBoard from '~/components/SprintPlanningBoard';
 import { useKeyboardShortcuts } from '~/hooks/useKeyboardShortcuts';
-import { Eye, X, FileText, Send, MessageSquare, Activity, Download, List, Calendar, BarChart3 } from 'lucide-react';
+import { Eye, X, FileText, Send, MessageSquare, Activity, Download, List, Calendar, BarChart3, Zap } from 'lucide-react';
 
 interface Project {
     id: number;
@@ -57,7 +58,7 @@ function ProjectDetailsContent() {
     const [project, setProject] = useState<Project | null>(null);
     const [tasks, setTasks] = useState<Task[]>([]);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<'overview' | 'tasks' | 'team' | 'activity' | 'messages' | 'analytics'>('overview');
+    const [activeTab, setActiveTab] = useState<'overview' | 'tasks' | 'team' | 'activity' | 'messages' | 'analytics' | 'sprints'>('overview');
     const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
     const [editingTask, setEditingTask] = useState<Task | null>(null);
     const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
@@ -480,6 +481,7 @@ function ProjectDetailsContent() {
                             { key: 'activity', label: 'Activity' },
                             { key: 'messages', label: 'Messages' },
                             { key: 'analytics', label: 'Analytics', icon: <BarChart3 className="w-4 h-4" /> },
+                            { key: 'sprints', label: 'Sprints', icon: <Zap className="w-4 h-4" /> },
                         ].map((tab) => (
                             <button
                                 key={tab.key}
@@ -885,6 +887,19 @@ function ProjectDetailsContent() {
                         projectId={Number(id)}
                         tasks={tasks}
                         teamMembers={project?.team_members || []}
+                    />
+                )}
+
+                {activeTab === 'sprints' && (
+                    <SprintPlanningBoard
+                        projectId={Number(id)}
+                        tasks={tasks}
+                        onTaskUpdate={async (taskId, updates) => {
+                            // In production, call API to update task
+                            await projectService.updateTask(taskId, updates);
+                            await loadTasks();
+                        }}
+                        onOpenTask={(task) => openTaskModal(task)}
                     />
                 )}
             </div>
