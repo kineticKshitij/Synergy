@@ -51,6 +51,8 @@ INSTALLED_APPS = [
     'accounts',
     'projects',
     'webhooks',
+    'notifications',
+    'reports',
 ]
 
 MIDDLEWARE = [

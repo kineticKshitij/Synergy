@@ -13,8 +13,12 @@ export default [
     route("team-dashboard/project/:id", "routes/team-dashboard.project.$id.tsx"),
     route("profile", "routes/profile.tsx"),
     route("security", "routes/security.tsx"),
+    route("settings", "routes/settings.tsx"),
     route("projects", "routes/projects.tsx"),
     route("projects/new", "routes/projects.new.tsx"),
     route("projects/:id", "routes/projects.$id.tsx"),
+    route("templates", "routes/templates.tsx"),
+    route("reports", "routes/reports.tsx"),
+    route("kanban", "routes/kanban.tsx"),
 ] satisfies RouteConfig;
 

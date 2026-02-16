@@ -80,8 +80,14 @@ export default function Home() {
       <section className="relative pt-32 pb-20 px-6 overflow-hidden">
         {/* Background Effects */}
         <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute top-20 left-10 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl"></div>
-          <div className="absolute bottom-20 right-10 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl"></div>
+          <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 animate-pulse" style={{ animationDuration: '8s' }}></div>
+          <div className="absolute inset-0 opacity-20" style={{
+            backgroundImage: `linear-gradient(rgba(59, 130, 246, 0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(59, 130, 246, 0.1) 1px, transparent 1px)`,
+            backgroundSize: '50px 50px'
+          }}></div>
+          <div className="absolute top-20 left-10 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '6s' }}></div>
+          <div className="absolute bottom-20 right-10 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '7s' }}></div>
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 border border-blue-500/10 rounded-lg rotate-45"></div>
         </div>
 
         <div className="max-w-7xl mx-auto relative z-10">
@@ -116,10 +122,13 @@ export default function Home() {
               { icon: "🛡️", value: "0", label: "Security Incidents" },
               { icon: "⚡", value: "99.95%", label: "Uptime SLO" },
             ].map((stat, index) => (
-              <div key={index} className="bg-gray-800/50 border border-gray-700 rounded-lg p-6 text-center backdrop-blur-sm">
-                <div className="text-4xl mb-2">{stat.icon}</div>
-                <div className="text-3xl font-bold text-blue-400 mb-1">{stat.value}</div>
-                <div className="text-gray-400 text-sm">{stat.label}</div>
+              <div key={index} className="relative bg-gray-800/50 border border-gray-700 rounded-lg p-6 text-center backdrop-blur-sm hover:border-blue-500/50 transition-all duration-300 group overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/0 to-purple-500/0 group-hover:from-blue-500/5 group-hover:to-purple-500/5 transition-all"></div>
+                <div className="relative z-10">
+                  <div className="text-4xl mb-2 transform group-hover:scale-110 transition-transform">{stat.icon}</div>
+                  <div className="text-3xl font-bold text-blue-400 mb-1">{stat.value}</div>
+                  <div className="text-gray-400 text-sm">{stat.label}</div>
+                </div>
               </div>
             ))}
           </div>
@@ -127,8 +136,15 @@ export default function Home() {
       </section>
 
       {/* Strategic Importance Section */}
-      <section id="importance" className="py-20 px-6 bg-gray-900 border-t border-b border-gray-800">
-        <div className="max-w-7xl mx-auto">
+      <section id="importance" className="relative py-20 px-6 bg-slate-950/50 border-t border-b border-slate-800/50 overflow-hidden">
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-0 left-0 w-full h-full opacity-30" style={{
+            backgroundImage: `radial-gradient(circle at 20% 50%, rgba(59, 130, 246, 0.1) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(168, 85, 247, 0.1) 0%, transparent 50%)`
+          }}></div>
+          <div className="absolute top-10 right-10 w-64 h-64 border border-blue-500/10 rounded-full"></div>
+          <div className="absolute bottom-10 left-10 w-48 h-48 border border-purple-500/10 rotate-45"></div>
+        </div>
+        <div className="max-w-7xl mx-auto relative z-10">
           <div className="text-center mb-16">
             <p className="uppercase tracking-[0.35em] text-sm text-blue-300/70 mb-3">Why this project matters</p>
             <h2 className="text-4xl md:text-5xl font-bold mb-4">A Control Plane For Every Critical Initiative</h2>
@@ -140,12 +156,19 @@ export default function Home() {
             {strategicPillars.map((pillar, index) => (
               <div
                 key={pillar.title}
-                className="bg-gray-800/50 border border-gray-700 rounded-2xl p-8 shadow-[0_10px_40px_rgba(0,0,0,0.35)]"
+                className="relative bg-gradient-to-br from-slate-800/60 to-slate-900/60 border border-slate-700/50 rounded-2xl p-8 shadow-2xl backdrop-blur-sm hover:border-blue-500/50 transition-all duration-300 group overflow-hidden"
               >
-                <div className="text-sm text-blue-300 tracking-[0.3em] uppercase mb-3">Pillar {index + 1}</div>
-                <h3 className="text-2xl font-semibold mb-3">{pillar.title}</h3>
-                <p className="text-blue-400 font-semibold mb-4">{pillar.metric}</p>
-                <p className="text-gray-400 text-sm leading-relaxed">{pillar.description}</p>
+                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-500/10 to-purple-500/10 rounded-bl-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                <div className="absolute bottom-0 left-0 w-24 h-24 border-l-2 border-b-2 border-blue-500/20 rounded-bl-lg"></div>
+                <div className="relative z-10">
+                  <div className="text-sm text-blue-300 tracking-[0.3em] uppercase mb-3 flex items-center gap-2">
+                    <span className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center text-xs font-bold">{index + 1}</span>
+                    Pillar {index + 1}
+                  </div>
+                  <h3 className="text-2xl font-semibold mb-3 bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">{pillar.title}</h3>
+                  <p className="text-blue-400 font-semibold mb-4">{pillar.metric}</p>
+                  <p className="text-slate-400 text-sm leading-relaxed">{pillar.description}</p>
+                </div>
               </div>
             ))}
           </div>
@@ -153,8 +176,12 @@ export default function Home() {
       </section>
 
       {/* Features Section */}
-      <section id="features" className="py-20 px-6 bg-gray-800/30">
-        <div className="max-w-7xl mx-auto">
+      <section id="features" className="relative py-20 px-6 bg-gradient-to-b from-slate-900/50 to-slate-950/50 overflow-hidden">
+        <div className="absolute inset-0 opacity-10" style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 0l25.98 15v30L30 60 4.02 45V15z' fill='none' stroke='%233b82f6' stroke-width='1'/%3E%3C/svg%3E")`,
+          backgroundSize: '60px 60px'
+        }}></div>
+        <div className="max-w-7xl mx-auto relative z-10">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold mb-4">Powerful Features</h2>
             <p className="text-xl text-gray-400 max-w-2xl mx-auto">
@@ -212,11 +239,15 @@ export default function Home() {
             ].map((feature, index) => (
               <div
                 key={index}
-                className="bg-gray-800/50 border border-gray-700 rounded-lg p-6 hover:border-blue-500/50 transition-all hover:transform hover:scale-105"
+                className="relative bg-gradient-to-br from-slate-800/40 to-slate-900/40 border border-slate-700/40 rounded-2xl p-6 hover:border-blue-500/50 transition-all duration-300 hover:transform hover:scale-105 group backdrop-blur-sm overflow-hidden"
               >
-                <div className="text-5xl mb-4">{feature.icon}</div>
-                <h3 className="text-xl font-bold mb-3">{feature.title}</h3>
-                <p className="text-gray-400">{feature.description}</p>
+                <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-blue-500/5 to-purple-500/5 rounded-bl-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                <div className="absolute bottom-0 left-0 w-16 h-16 border border-blue-500/10 rounded-tr-2xl"></div>
+                <div className="relative z-10">
+                  <div className="text-5xl mb-4 transform group-hover:scale-110 transition-transform">{feature.icon}</div>
+                  <h3 className="text-xl font-bold mb-3 bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">{feature.title}</h3>
+                  <p className="text-slate-400">{feature.description}</p>
+                </div>
               </div>
             ))}
           </div>
@@ -224,8 +255,12 @@ export default function Home() {
       </section>
 
       {/* Executive Outcomes Section */}
-      <section id="executive-focus" className="py-20 px-6 bg-gray-900/70 border-b border-gray-800">
-        <div className="max-w-7xl mx-auto">
+      <section id="executive-focus" className="relative py-20 px-6 bg-slate-950/70 border-b border-slate-800/50 overflow-hidden">
+        <div className="absolute inset-0 opacity-5" style={{
+          backgroundImage: `repeating-linear-gradient(45deg, transparent, transparent 35px, rgba(59, 130, 246, 0.5) 35px, rgba(59, 130, 246, 0.5) 36px)`
+        }}></div>
+        <div className="absolute top-20 right-20 w-72 h-72 bg-purple-500/10 rounded-full blur-3xl"></div>
+        <div className="max-w-7xl mx-auto relative z-10">
           <div className="text-center mb-14">
             <p className="uppercase tracking-[0.3em] text-sm text-purple-300/70 mb-3">Board-level outcomes</p>
             <h2 className="text-4xl font-bold mb-4">Why leadership bets on SynergyOS</h2>
@@ -234,12 +269,20 @@ export default function Home() {
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {executiveOutcomes.map((item) => (
-              <div key={item.role} className="bg-gray-800/60 border border-gray-700 rounded-2xl p-8">
-                <div className="text-sm text-gray-400 uppercase tracking-[0.35em] mb-3">{item.role}</div>
-                <h3 className="text-2xl font-semibold mb-2">{item.priority}</h3>
-                <p className="text-purple-300 font-semibold mb-4">{item.impact}</p>
-                <p className="text-gray-400 text-sm leading-relaxed">{item.detail}</p>
+            {executiveOutcomes.map((item, idx) => (
+              <div key={item.role} className="relative bg-gradient-to-br from-slate-800/70 to-slate-900/70 border border-slate-700/50 rounded-2xl p-8 backdrop-blur-sm hover:border-purple-500/50 transition-all duration-300 group overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-purple-500/50 to-transparent"></div>
+                <div className="absolute top-4 right-4 w-12 h-12 border border-purple-500/20 rounded-lg rotate-12"></div>
+                <div className="relative z-10">
+                  <div className="text-sm text-slate-400 uppercase tracking-[0.35em] mb-3 flex items-center gap-2">
+                    <span className="w-6 h-6 rounded bg-purple-500/20 flex items-center justify-center text-xs">{idx + 1}</span>
+                    {item.role}
+                  </div>
+                  <h3 className="text-2xl font-semibold mb-2 bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">{item.priority}</h3>
+                  <p className="text-purple-300 font-semibold mb-4">{item.impact}</p>
+                  <p className="text-slate-400 text-sm leading-relaxed">{item.detail}</p>
+                </div>
               </div>
             ))}
           </div>
@@ -247,8 +290,13 @@ export default function Home() {
       </section>
 
       {/* How It Works Section */}
-      <section id="how-it-works" className="py-20 px-6">
-        <div className="max-w-7xl mx-auto">
+      <section id="how-it-works" className="relative py-20 px-6 overflow-hidden">
+        <div className="absolute inset-0 opacity-20" style={{
+          backgroundImage: `radial-gradient(circle, rgba(59, 130, 246, 0.4) 1px, transparent 1px)`,
+          backgroundSize: '30px 30px'
+        }}></div>
+        <div className="absolute top-1/4 left-10 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl"></div>
+        <div className="max-w-7xl mx-auto relative z-10">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold mb-4">How It Works</h2>
             <p className="text-xl text-gray-400 max-w-2xl mx-auto">
@@ -284,13 +332,16 @@ export default function Home() {
               },
             ].map((item, index) => (
               <div key={index} className="relative">
-                <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-6 text-center">
-                  <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4">
-                    {item.step}
+                <div className="bg-gradient-to-br from-slate-800/60 to-slate-900/60 border border-slate-700/50 rounded-2xl p-6 text-center backdrop-blur-sm hover:border-blue-500/50 transition-all duration-300 group overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-br from-blue-500/0 to-purple-500/0 group-hover:from-blue-500/5 group-hover:to-purple-500/5 transition-all"></div>
+                  <div className="relative z-10">
+                    <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4 shadow-lg shadow-blue-500/50 group-hover:scale-110 transition-transform">
+                      {item.step}
+                    </div>
+                    <div className="text-4xl mb-3 transform group-hover:scale-110 transition-transform">{item.icon}</div>
+                    <h3 className="text-xl font-bold mb-2 bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">{item.title}</h3>
+                    <p className="text-slate-400 text-sm">{item.description}</p>
                   </div>
-                  <div className="text-4xl mb-3">{item.icon}</div>
-                  <h3 className="text-xl font-bold mb-2">{item.title}</h3>
-                  <p className="text-gray-400 text-sm">{item.description}</p>
                 </div>
                 {index < 3 && (
                   <div className="hidden lg:block absolute top-1/2 right-0 transform translate-x-1/2 -translate-y-1/2">
@@ -304,8 +355,13 @@ export default function Home() {
       </section>
 
       {/* Impact Timeline Section */}
-      <section id="impact-timeline" className="py-20 px-6 bg-gray-900/50 border-y border-gray-800">
-        <div className="max-w-7xl mx-auto">
+      <section id="impact-timeline" className="relative py-20 px-6 bg-gradient-to-br from-slate-950/50 to-slate-900/50 border-y border-slate-800/50 overflow-hidden">
+        <div className="absolute inset-0 opacity-10" style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 50 Q 25 40, 50 50 T 100 50' fill='none' stroke='%2310b981' stroke-width='0.5'/%3E%3C/svg%3E")`,
+          backgroundSize: '100px 100px'
+        }}></div>
+        <div className="absolute bottom-0 right-0 w-96 h-96 bg-green-500/10 rounded-full blur-3xl"></div>
+        <div className="max-w-7xl mx-auto relative z-10">
           <div className="text-center mb-16">
             <p className="uppercase tracking-[0.3em] text-sm text-green-300/70 mb-3">90-day proof plan</p>
             <h2 className="text-4xl md:text-5xl font-bold mb-4">Show value fast, then scale without rewriting</h2>
@@ -314,11 +370,18 @@ export default function Home() {
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {impactMilestones.map((milestone) => (
-              <div key={milestone.label} className="bg-gray-800/60 border border-gray-700 rounded-2xl p-8">
-                <div className="text-sm text-green-300 tracking-[0.3em] uppercase mb-2">{milestone.label}</div>
-                <h3 className="text-2xl font-semibold mb-3">{milestone.title}</h3>
-                <p className="text-gray-400 text-sm leading-relaxed">{milestone.description}</p>
+            {impactMilestones.map((milestone, idx) => (
+              <div key={milestone.label} className="relative bg-gradient-to-br from-slate-800/70 to-slate-900/70 border border-slate-700/50 rounded-2xl p-8 backdrop-blur-sm hover:border-green-500/50 transition-all duration-300 group overflow-hidden">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-green-500/10 to-emerald-500/10 rounded-bl-full"></div>
+                <div className="absolute bottom-4 left-4 w-16 h-16 border-2 border-green-500/20 rounded-lg rotate-12"></div>
+                <div className="relative z-10">
+                  <div className="text-sm text-green-300 tracking-[0.3em] uppercase mb-2 flex items-center gap-2">
+                    <span className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center text-xs font-bold">{idx + 1}</span>
+                    {milestone.label}
+                  </div>
+                  <h3 className="text-2xl font-semibold mb-3 bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">{milestone.title}</h3>
+                  <p className="text-slate-400 text-sm leading-relaxed">{milestone.description}</p>
+                </div>
               </div>
             ))}
           </div>
@@ -326,8 +389,13 @@ export default function Home() {
       </section>
 
       {/* Security Section */}
-      <section id="security" className="py-20 px-6 bg-gray-800/30">
-        <div className="max-w-7xl mx-auto">
+      <section id="security" className="relative py-20 px-6 bg-gradient-to-b from-slate-900/50 to-slate-950/50 overflow-hidden">
+        <div className="absolute inset-0 opacity-5" style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M10 10h80v80H10z' fill='none' stroke='%233b82f6' stroke-width='1'/%3E%3Ccircle cx='10' cy='10' r='2' fill='%233b82f6'/%3E%3Ccircle cx='90' cy='10' r='2' fill='%233b82f6'/%3E%3Ccircle cx='90' cy='90' r='2' fill='%233b82f6'/%3E%3Ccircle cx='10' cy='90' r='2' fill='%233b82f6'/%3E%3C/svg%3E")`,
+          backgroundSize: '100px 100px'
+        }}></div>
+        <div className="absolute top-40 left-20 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl"></div>
+        <div className="max-w-7xl mx-auto relative z-10">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
               <h2 className="text-4xl md:text-5xl font-bold mb-6">

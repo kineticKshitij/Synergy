@@ -72,6 +72,89 @@ Return ONLY the JSON array, no other text.
             print(f"Error generating task suggestions: {e}")
             return self._get_fallback_suggestions(project_data)
     
+    def generate_tasks_for_project(self, project_data: Dict[str, Any], existing_tasks: List[Dict[str, Any]], custom_description: str = None) -> List[Dict[str, Any]]:
+        """
+        Generate multiple tasks for a project based on project details or custom description
+        
+        Args:
+            project_data: Dictionary containing project name, description, status, etc.
+            existing_tasks: List of existing task titles to avoid duplicates
+            custom_description: Optional custom description to override project context
+        
+        Returns:
+            List of generated tasks with title, description, priority, estimated_hours, rationale
+        """
+        if not self.enabled:
+            return self._get_fallback_task_generation(project_data, existing_tasks, custom_description)
+        
+        try:
+            model = self._get_model()
+            
+            # Prepare existing task titles for duplicate detection
+            existing_titles = [task.get('title', '') for task in existing_tasks]
+            existing_titles_str = '\n'.join([f"- {title}" for title in existing_titles[:20]])  # Limit to 20
+            
+            # Determine what to use as the main directive
+            if custom_description:
+                directive = f"Custom Request: {custom_description}"
+            else:
+                directive = f"""
+Project Name: {project_data.get('name', 'Untitled Project')}
+Project Description: {project_data.get('description', 'No description provided')}
+Project Status: {project_data.get('status', 'planning')}
+Project Priority: {project_data.get('priority', 'medium')}
+"""
+            
+            prompt = f"""
+You are a project management AI assistant. Generate a comprehensive set of tasks for this project.
+
+{directive}
+
+Existing Tasks ({len(existing_tasks)} already created):
+{existing_titles_str if existing_titles_str else 'None'}
+
+Generate 3-10 NEW tasks that:
+1. Are essential for completing this project
+2. Are NOT duplicates or too similar to existing tasks
+3. Cover different aspects (planning, implementation, testing, documentation, etc.)
+4. Are specific and actionable (not vague)
+5. Have realistic time estimates
+6. Build on or complement existing tasks when appropriate
+
+For each task, provide:
+- title: Clear, actionable task title (max 100 chars)
+- description: Detailed description of what needs to be done (2-4 sentences)
+- priority: One of "low", "medium", "high", or "critical"
+- estimated_hours: Realistic time estimate as a number (be conservative)
+- rationale: Brief explanation of why this task is important (1 sentence)
+
+Avoid:
+- Generic tasks like "Review project" or "Update documentation" unless very specific
+- Tasks that duplicate or overlap significantly with existing tasks
+- Tasks that are too broad (break them down into specific actions)
+
+Return ONLY a JSON array of task objects, no other text:
+[
+  {{
+    "title": "...",
+    "description": "...",
+    "priority": "...",
+    "estimated_hours": ...,
+    "rationale": "..."
+  }}
+]
+"""
+            
+            response = model.generate_content(prompt)
+            tasks = self._parse_json_response(response.text)
+            
+            # Validate and clean tasks
+            return self._validate_generated_tasks(tasks)
+            
+        except Exception as e:
+            print(f"Error generating tasks for project: {e}")
+            return self._get_fallback_task_generation(project_data, existing_tasks, custom_description)
+    
     def analyze_project_risks(self, project_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Analyze project for potential risks and issues
@@ -407,6 +490,24 @@ Write a professional summary highlighting progress, key activities, and next ste
             'due_date_suggestion': str(task_data.get('due_date_suggestion', '')) if task_data.get('due_date_suggestion') else None
         }
     
+    def _validate_generated_tasks(self, tasks: List) -> List[Dict[str, Any]]:
+        """Validate and clean generated tasks"""
+        if not isinstance(tasks, list):
+            return []
+        
+        valid_tasks = []
+        for task in tasks[:10]:  # Max 10 tasks
+            if isinstance(task, dict) and 'title' in task:
+                valid_tasks.append({
+                    'title': str(task.get('title', ''))[:200],
+                    'description': str(task.get('description', ''))[:1000],
+                    'priority': task.get('priority', 'medium') if task.get('priority') in ['low', 'medium', 'high', 'critical'] else 'medium',
+                    'estimated_hours': float(task.get('estimated_hours', 2)) if isinstance(task.get('estimated_hours'), (int, float)) and task.get('estimated_hours') > 0 else 2.0,
+                    'rationale': str(task.get('rationale', 'AI-generated task'))[:300]
+                })
+        
+        return valid_tasks
+    
     # Fallback methods when AI is not available
     
     def _get_fallback_suggestions(self, project_data: Dict) -> List[Dict[str, str]]:
@@ -432,6 +533,109 @@ Write a professional summary highlighting progress, key activities, and next ste
                 'estimated_hours': 2
             }
         ]
+    
+    def _get_fallback_task_generation(self, project_data: Dict, existing_tasks: List, custom_description: str = None) -> List[Dict[str, Any]]:
+        """Fallback task generation when AI is unavailable"""
+        project_name = project_data.get('name', 'Project')
+        project_status = project_data.get('status', 'planning')
+        
+        # Generate basic tasks based on project status
+        fallback_tasks = []
+        
+        if project_status == 'planning' or len(existing_tasks) == 0:
+            fallback_tasks = [
+                {
+                    'title': f'Define {project_name} requirements and scope',
+                    'description': 'Document detailed requirements, success criteria, and project scope. Identify stakeholders and gather input.',
+                    'priority': 'high',
+                    'estimated_hours': 4.0,
+                    'rationale': 'Clear requirements are essential for project success'
+                },
+                {
+                    'title': f'Create technical architecture for {project_name}',
+                    'description': 'Design system architecture, select technologies, and plan infrastructure. Document key technical decisions.',
+                    'priority': 'high',
+                    'estimated_hours': 6.0,
+                    'rationale': 'Architecture guides all implementation work'
+                },
+                {
+                    'title': f'Setup development environment and tools',
+                    'description': 'Configure development environment, version control, CI/CD pipeline, and collaboration tools.',
+                    'priority': 'high',
+                    'estimated_hours': 3.0,
+                    'rationale': 'Proper tooling enables efficient development'
+                },
+                {
+                    'title': f'Create project timeline and milestones',
+                    'description': 'Break down project into phases, set realistic milestones, and allocate resources.',
+                    'priority': 'medium',
+                    'estimated_hours': 2.0,
+                    'rationale': 'Timeline keeps project on track'
+                }
+            ]
+        else:
+            fallback_tasks = [
+                {
+                    'title': f'Implement core functionality for {project_name}',
+                    'description': 'Build the main features and components. Follow architecture and design specifications.',
+                    'priority': 'high',
+                    'estimated_hours': 8.0,
+                    'rationale': 'Core functionality is the heart of the project'
+                },
+                {
+                    'title': f'Write unit and integration tests',
+                    'description': 'Create comprehensive test suite covering key functionality. Aim for high code coverage.',
+                    'priority': 'high',
+                    'estimated_hours': 4.0,
+                    'rationale': 'Tests ensure quality and prevent regressions'
+                },
+                {
+                    'title': f'Create user documentation and guides',
+                    'description': 'Write user guides, API documentation, and setup instructions. Include examples and troubleshooting.',
+                    'priority': 'medium',
+                    'estimated_hours': 3.0,
+                    'rationale': 'Documentation enables users to effectively use the project'
+                },
+                {
+                    'title': f'Conduct code review and refactoring',
+                    'description': 'Review code quality, refactor where needed, and ensure coding standards are followed.',
+                    'priority': 'medium',
+                    'estimated_hours': 4.0,
+                    'rationale': 'Code quality impacts maintainability'
+                },
+                {
+                    'title': f'Perform security audit and testing',
+                    'description': 'Review security implications, test for vulnerabilities, and implement security best practices.',
+                    'priority': 'high',
+                    'estimated_hours': 5.0,
+                    'rationale': 'Security is critical for production systems'
+                }
+            ]
+        
+        # If custom description provided, add a custom task
+        if custom_description:
+            fallback_tasks.insert(0, {
+                'title': custom_description[:100] if len(custom_description) <= 100 else custom_description[:97] + '...',
+                'description': custom_description,
+                'priority': 'medium',
+                'estimated_hours': 4.0,
+                'rationale': 'Custom task requested by user'
+            })
+        
+        # Filter out potential duplicates with existing tasks
+        existing_titles_lower = [t.get('title', '').lower() for t in existing_tasks]
+        filtered_tasks = []
+        for task in fallback_tasks:
+            title_lower = task['title'].lower()
+            # Simple duplicate check: if any existing title is very similar
+            is_duplicate = any(
+                title_lower in existing or existing in title_lower 
+                for existing in existing_titles_lower
+            )
+            if not is_duplicate:
+                filtered_tasks.append(task)
+        
+        return filtered_tasks[:5]  # Return max 5 tasks in fallback mode
     
     def _get_fallback_risk_analysis(self, project_data: Dict) -> Dict[str, Any]:
         """Fallback risk analysis"""
@@ -509,6 +713,298 @@ Write a professional summary highlighting progress, key activities, and next ste
         completed = len([t for t in tasks if t.get('status') == 'completed'])
         
         return f"{name} is currently {project_data.get('status', 'active')} with {completed} of {total} tasks completed. The team is making progress on key deliverables."
+    
+    def breakdown_task_into_subtasks(self, task_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Break down a complex task into smaller subtasks with estimates and dependencies
+        
+        Args:
+            task_data: Dictionary with task title, description, context
+        
+        Returns:
+            Dictionary with subtasks, dependencies, total estimate
+        """
+        if not self.enabled:
+            return self._get_fallback_task_breakdown(task_data)
+        
+        try:
+            model = self._get_model()
+            
+            prompt = f"""
+You are a project management expert. Break down the following task into smaller, actionable subtasks.
+
+Task Title: {task_data.get('title', 'Task')}
+Task Description: {task_data.get('description', 'No description provided')}
+Project Context: {task_data.get('project_context', 'General project')}
+
+Analyze this task and create 3-7 subtasks that together accomplish the main task. For each subtask:
+- title: Clear, actionable title (max 80 chars)
+- description: What needs to be done (1-2 sentences)
+- estimated_hours: Realistic time estimate
+- priority: "low", "medium", "high", or "critical"
+- dependencies: Array of subtask indices this depends on (0-indexed, empty array if no dependencies)
+- skills_required: Array of skills needed (e.g., ["frontend", "api", "testing"])
+
+Also provide:
+- total_estimated_hours: Sum of all subtask estimates
+- complexity_score: 1-10 rating of overall task complexity
+- recommended_sequence: Brief text explaining optimal order to tackle subtasks
+
+Return ONLY a JSON object with this structure:
+{{
+  "subtasks": [...],
+  "total_estimated_hours": number,
+  "complexity_score": number,
+  "recommended_sequence": "string"
+}}
+"""
+            
+            response = model.generate_content(prompt)
+            breakdown = self._parse_json_response(response.text)
+            
+            # Validate structure
+            if 'subtasks' not in breakdown:
+                return self._get_fallback_task_breakdown(task_data)
+            
+            return breakdown
+            
+        except Exception as e:
+            print(f"Error breaking down task: {e}")
+            return self._get_fallback_task_breakdown(task_data)
+    
+    def suggest_due_date(self, task_data: Dict[str, Any], user_workload: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Suggest realistic due date based on task complexity and user's current workload
+        
+        Args:
+            task_data: Task details including title, description, priority, estimated hours
+            user_workload: Current workload info (active tasks, hours committed, availability)
+        
+        Returns:
+            Dictionary with suggested date, reasoning, alternative dates
+        """
+        if not self.enabled:
+            return self._get_fallback_due_date(task_data, user_workload)
+        
+        try:
+            model = self._get_model()
+            
+            current_date = datetime.now().strftime('%Y-%m-%d')
+            
+            prompt = f"""
+You are a project planning AI. Suggest a realistic due date for this task based on the user's workload.
+
+Current Date: {current_date}
+
+Task Details:
+- Title: {task_data.get('title', 'Task')}
+- Description: {task_data.get('description', 'No description')}
+- Priority: {task_data.get('priority', 'medium')}
+- Estimated Hours: {task_data.get('estimated_hours', 'not specified')}
+
+User's Current Workload:
+- Active Tasks: {user_workload.get('active_task_count', 0)}
+- Hours Already Committed (next 7 days): {user_workload.get('committed_hours_week', 0)}
+- Hours Available Per Day: {user_workload.get('available_hours_per_day', 6)}
+- Upcoming Deadlines: {user_workload.get('upcoming_deadline_count', 0)}
+
+Consider:
+1. Task complexity and estimated hours
+2. Current workload capacity
+3. Task priority (critical tasks should be sooner)
+4. Buffer time for unexpected issues
+5. Reasonable work-life balance
+
+Provide your response as a JSON object with:
+- suggested_date: ISO date string (YYYY-MM-DD)
+- confidence_level: "high", "medium", or "low"
+- reasoning: Brief explanation (2-3 sentences)
+- alternative_dates: Array of 2 other date options with brief rationale
+- workload_warning: Boolean if user seems overloaded
+- capacity_percentage: Estimated % of user's capacity this will consume
+
+Return ONLY the JSON object.
+"""
+            
+            response = model.generate_content(prompt)
+            suggestion = self._parse_json_response(response.text)
+            
+            return suggestion
+            
+        except Exception as e:
+            print(f"Error suggesting due date: {e}")
+            return self._get_fallback_due_date(task_data, user_workload)
+    
+    def extract_tasks_from_meeting_notes(self, meeting_notes: str, project_context: str = "") -> Dict[str, Any]:
+        """
+        Extract action items and tasks from meeting notes
+        
+        Args:
+            meeting_notes: Free-form text of meeting notes
+            project_context: Optional project name/context
+        
+        Returns:
+            Dictionary with extracted tasks, meeting summary, attendees mentioned
+        """
+        if not self.enabled:
+            return self._get_fallback_meeting_extraction(meeting_notes)
+        
+        try:
+            model = self._get_model()
+            
+            prompt = f"""
+You are an AI assistant that extracts actionable tasks from meeting notes.
+
+Project Context: {project_context or 'General meeting'}
+
+Meeting Notes:
+{meeting_notes}
+
+Analyze these notes and extract:
+1. Action items / tasks that need to be completed
+2. Who is responsible (if mentioned)
+3. Deadlines or timeframes (if mentioned)
+4. Priority level based on discussion tone
+
+For each task provide:
+- title: Clear, actionable task title
+- description: Context from the meeting (2-3 sentences)
+- assignee: Person mentioned or "unassigned"
+- priority: "low", "medium", "high", or "critical" based on discussion
+- estimated_hours: Your best guess based on task scope
+- due_date_mentioned: Specific date if mentioned, or null
+- relevant_context: Key quotes or context from meeting
+
+Also provide:
+- meeting_summary: 2-3 sentence overview of the meeting
+- key_decisions: Array of major decisions made
+- attendees_mentioned: Array of names detected in notes
+- follow_up_needed: Boolean if more discussion is needed
+
+Return ONLY a JSON object:
+{{
+  "extracted_tasks": [...],
+  "meeting_summary": "string",
+  "key_decisions": [...],
+  "attendees_mentioned": [...],
+  "follow_up_needed": boolean
+}}
+"""
+            
+            response = model.generate_content(prompt)
+            extraction = self._parse_json_response(response.text)
+            
+            return extraction
+            
+        except Exception as e:
+            print(f"Error extracting tasks from meeting notes: {e}")
+            return self._get_fallback_meeting_extraction(meeting_notes)
+    
+    def _get_fallback_task_breakdown(self, task_data: Dict) -> Dict[str, Any]:
+        """Fallback task breakdown when AI is unavailable"""
+        estimated_hours = task_data.get('estimated_hours', 8)
+        
+        return {
+            'subtasks': [
+                {
+                    'title': 'Plan and design approach',
+                    'description': 'Define requirements and technical approach',
+                    'estimated_hours': max(1, estimated_hours * 0.2),
+                    'priority': 'high',
+                    'dependencies': [],
+                    'skills_required': ['planning']
+                },
+                {
+                    'title': 'Implement core functionality',
+                    'description': 'Build the main features and functionality',
+                    'estimated_hours': max(2, estimated_hours * 0.5),
+                    'priority': 'high',
+                    'dependencies': [0],
+                    'skills_required': ['development']
+                },
+                {
+                    'title': 'Testing and refinement',
+                    'description': 'Test thoroughly and fix any issues',
+                    'estimated_hours': max(1, estimated_hours * 0.3),
+                    'priority': 'medium',
+                    'dependencies': [1],
+                    'skills_required': ['testing']
+                }
+            ],
+            'total_estimated_hours': estimated_hours,
+            'complexity_score': 5,
+            'recommended_sequence': 'Start with planning, implement core features, then test thoroughly'
+        }
+    
+    def _get_fallback_due_date(self, task_data: Dict, user_workload: Dict) -> Dict[str, Any]:
+        """Fallback due date suggestion"""
+        priority = task_data.get('priority', 'medium')
+        estimated_hours = task_data.get('estimated_hours', 4)
+        
+        # Simple calculation: high priority = 2 days, medium = 5 days, low = 7 days
+        days_map = {'critical': 1, 'high': 2, 'medium': 5, 'low': 7}
+        days_ahead = days_map.get(priority, 5)
+        
+        # Adjust for estimated hours
+        if estimated_hours > 8:
+            days_ahead += 2
+        
+        suggested_date = (datetime.now() + timedelta(days=days_ahead)).strftime('%Y-%m-%d')
+        alternative_1 = (datetime.now() + timedelta(days=days_ahead-2)).strftime('%Y-%m-%d')
+        alternative_2 = (datetime.now() + timedelta(days=days_ahead+3)).strftime('%Y-%m-%d')
+        
+        return {
+            'suggested_date': suggested_date,
+            'confidence_level': 'medium',
+            'reasoning': f'Based on {priority} priority and estimated {estimated_hours} hours, allowing for current workload.',
+            'alternative_dates': [
+                {'date': alternative_1, 'rationale': 'Aggressive timeline if task is critical'},
+                {'date': alternative_2, 'rationale': 'Conservative timeline with buffer'}
+            ],
+            'workload_warning': user_workload.get('active_task_count', 0) > 10,
+            'capacity_percentage': min(100, (estimated_hours / 40) * 100)
+        }
+    
+    def _get_fallback_meeting_extraction(self, meeting_notes: str) -> Dict[str, Any]:
+        """Fallback meeting notes extraction"""
+        # Simple extraction: look for action items, TODO, follow-up
+        lines = meeting_notes.split('\n')
+        tasks = []
+        
+        action_keywords = ['action item', 'todo', 'task', 'follow up', 'need to', 'should', 'will']
+        
+        for line in lines:
+            line_lower = line.lower()
+            if any(keyword in line_lower for keyword in action_keywords):
+                tasks.append({
+                    'title': line.strip()[:100],
+                    'description': line.strip(),
+                    'assignee': 'unassigned',
+                    'priority': 'medium',
+                    'estimated_hours': 2,
+                    'due_date_mentioned': None,
+                    'relevant_context': line.strip()
+                })
+        
+        # If no tasks found, create one generic task
+        if not tasks:
+            tasks.append({
+                'title': 'Review meeting notes and create action items',
+                'description': meeting_notes[:200],
+                'assignee': 'unassigned',
+                'priority': 'medium',
+                'estimated_hours': 1,
+                'due_date_mentioned': None,
+                'relevant_context': 'Action items not clearly defined in meeting'
+            })
+        
+        return {
+            'extracted_tasks': tasks[:10],  # Limit to 10 tasks
+            'meeting_summary': meeting_notes[:300] if len(meeting_notes) > 300 else meeting_notes,
+            'key_decisions': ['Review meeting notes for specific decisions'],
+            'attendees_mentioned': [],
+            'follow_up_needed': len(tasks) == 0
+        }
 
 
 # Global AI service instance

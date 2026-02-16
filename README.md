@@ -111,11 +111,27 @@ docker-compose exec backend python manage.py createsuperuser
 - **Smooth Animations** - Polished user experience with custom CSS animations
 - **Component Library** - Reusable UI components (LoadingSpinner, Toast, Modal, etc.)
 
-### 🤖 AI-Powered Capabilities *(Coming Soon)*
-- Smart task prioritization and scheduling
-- Automated anomaly detection
-- Intelligent feedback analysis
-- Predictive analytics for project timelines
+### 🤖 AI-Powered Capabilities
+
+#### AI Task Generator
+- **Auto-Generate Tasks** - AI creates comprehensive task breakdowns for projects
+- **Context-Aware** - Analyzes existing tasks to avoid duplicates and identify gaps
+- **Smart Descriptions** - Generates detailed task descriptions with rationale
+- **Priority Assignment** - Automatically assigns priorities based on project goals
+- **Time Estimation** - Provides realistic time estimates for each task
+- **Custom Instructions** - Override project context with specific requirements
+- **Preview Mode** - Review AI suggestions before creating tasks
+
+#### AI Project Analysis
+- **Task Suggestions** - Generate 5 relevant tasks based on project details
+- **Risk Analysis** - Identify potential risks and bottlenecks
+- **Task Prioritization** - AI-powered task ordering recommendations
+- **Natural Language Parsing** - Convert natural language to structured tasks
+- **Due Date Suggestions** - Smart due date recommendations based on workload
+- **Meeting Notes Extraction** - Extract action items from meeting notes
+- **Task Breakdown** - Decompose complex tasks into subtasks
+- **User Insights** - Personalized productivity insights and trends
+- **Project Summaries** - AI-generated project status summaries
 
 ## 📁 Project Structure
 
@@ -143,6 +159,247 @@ SynergyOS/
 └── README.md
 ```
 
+---
+
+## 🤖 AI Features Documentation
+
+### AI Task Generator
+
+The AI Task Generator is a powerful feature that uses Google's Gemini 2.5 Flash model to automatically generate comprehensive task breakdowns for your projects.
+
+#### Key Capabilities
+
+1. **Automatic Task Generation**: Generate 3-10 tasks based on project details
+2. **Context-Aware**: Analyzes existing tasks to avoid duplicates
+3. **Smart Descriptions**: Creates detailed, actionable task descriptions
+4. **Intelligent Prioritization**: Assigns appropriate priority levels
+5. **Time Estimation**: Provides realistic hour estimates
+6. **Custom Instructions**: Override with specific task generation requirements
+
+#### Setup
+
+1. **Get Gemini API Key**:
+   - Visit [Google AI Studio](https://makersuite.google.com/app/apikey)
+   - Create or select a project
+   - Generate an API key
+
+2. **Configure Environment**:
+   ```bash
+   # Add to .env file
+   GEMINI_API_KEY=your_api_key_here
+   ```
+
+3. **Verify Setup**:
+   ```bash
+   # Test your API key
+   python test_gemini_key.py
+   ```
+
+#### API Endpoint
+
+**POST** `/api/ai/generate_tasks/`
+
+**Authentication**: Required (JWT Bearer token)
+
+**Request Body**:
+```json
+{
+  "project_id": 123,
+  "description": "Create a login system with email verification",  // Optional
+  "auto_create": false  // Optional, default: false
+}
+```
+
+**Parameters**:
+- `project_id` (required): ID of the project to generate tasks for
+- `description` (optional): Custom natural language description for specific task generation. If omitted, AI uses project name and description
+- `auto_create` (optional, default: false): 
+  - `false`: Returns suggestions for review (preview mode)
+  - `true`: Creates tasks immediately in database
+
+**Response (Preview Mode)**:
+```json
+{
+  "success": true,
+  "project_id": 123,
+  "suggestions": [
+    {
+      "title": "Design user authentication database schema",
+      "description": "Create database models for users, including fields for email, password hash, verification tokens, and account status. Implement proper indexing for email lookups.",
+      "priority": "high",
+      "estimated_hours": 3.0,
+      "rationale": "Database schema is the foundation for all authentication features"
+    },
+    {
+      "title": "Implement email verification system",
+      "description": "Build email sending functionality with verification links, token generation, and expiry handling. Include email templates and retry logic.",
+      "priority": "high",
+      "estimated_hours": 5.0,
+      "rationale": "Email verification ensures valid user accounts and prevents spam"
+    },
+    {
+      "title": "Create login API endpoint with JWT tokens",
+      "description": "Develop secure login endpoint with password verification, JWT token generation, and proper error handling for invalid credentials.",
+      "priority": "critical",
+      "estimated_hours": 4.0,
+      "rationale": "Core authentication functionality for user access"
+    }
+  ],
+  "enabled": true
+}
+```
+
+**Response (Auto-Create Mode)**:
+```json
+{
+  "success": true,
+  "project_id": 123,
+  "suggestions": [...],
+  "created_tasks": [
+    {
+      "id": 456,
+      "title": "Design user authentication database schema",
+      "description": "...",
+      "priority": "high",
+      "status": "todo",
+      "estimated_hours": 3.0,
+      "project": 123,
+      "assigned_to": null,
+      "created_at": "2026-02-16T10:30:00Z",
+      "updated_at": "2026-02-16T10:30:00Z"
+    }
+  ],
+  "created_count": 5,
+  "enabled": true
+}
+```
+
+#### Usage Examples
+
+**Example 1: Generate Tasks from Project Details**
+
+```bash
+curl -X POST http://localhost/api/ai/generate_tasks/ \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "project_id": 123,
+    "auto_create": false
+  }'
+```
+
+This generates tasks based on the project's name, description, and current status.
+
+**Example 2: Generate Tasks with Custom Description**
+
+```bash
+curl -X POST http://localhost/api/ai/generate_tasks/ \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "project_id": 123,
+    "description": "Create comprehensive unit tests for all authentication endpoints including login, logout, registration, password reset, and 2FA verification",
+    "auto_create": false
+  }'
+```
+
+This generates tasks specifically focused on your custom requirements.
+
+**Example 3: Generate and Create Tasks Immediately**
+
+```bash
+curl -X POST http://localhost/api/ai/generate_tasks/ \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "project_id": 123,
+    "auto_create": true
+  }'
+```
+
+This creates tasks directly in the database without preview.
+
+#### Workflow
+
+**Recommended Workflow (Preview First)**:
+
+1. **Generate Suggestions**: Call API with `auto_create: false`
+2. **Review Tasks**: Examine AI-generated tasks, descriptions, and estimates
+3. **Select Tasks**: Choose which tasks to create (frontend implementation)
+4. **Create Selected**: Call API again with selected tasks or use standard task creation API
+
+**Quick Workflow (Auto-Create)**:
+
+1. **Generate & Create**: Call API with `auto_create: true`
+2. **Review Created**: Check project dashboard for new tasks
+3. **Edit if Needed**: Modify tasks using standard task update API
+
+#### AI Features Comparison
+
+| Feature | Endpoint | Input | Output |
+|---------|----------|-------|--------|
+| **Task Generator** | `/api/ai/generate_tasks/` | Project ID or description | 3-10 complete tasks |
+| Task Suggestions | `/api/ai/task_suggestions/` | Project data | 5 task titles |
+| Natural Language Parse | `/api/ai/parse_nl_task/` | Task description | Single parsed task |
+| Task Breakdown | `/api/tasks/{id}/ai_breakdown_task/` | Task ID | Subtasks with dependencies |
+| Risk Analysis | `/api/ai/risk_analysis/` | Project ID | Risk assessment |
+| Task Prioritization | `/api/ai/prioritize_tasks/` | Task IDs | Reordered task list |
+| Due Date Suggestion | `/api/tasks/{id}/ai_suggest_due_date/` | Task ID + workload | Suggested date |
+| Meeting Notes | `/api/tasks/ai_extract_meeting_tasks/` | Meeting notes | Extracted action items |
+| User Insights | `/api/ai/generate_insights/` | User ID | Productivity insights |
+| Project Summary | `/api/ai/project_summary/` | Project ID | AI-generated summary |
+
+#### Permissions & Security
+
+- **Owner-Only**: Only project owners can generate tasks (maintains consistency with task creation permissions)
+- **Rate Limiting**: Consider implementing rate limits for AI endpoints (default: none)
+- **Activity Logging**: All AI-generated tasks are logged with metadata:
+  - Action: `ai_task_created`
+  - Metadata includes: `ai_generated: true`, `rationale`, `custom_description`
+
+#### Error Handling
+
+**Common Errors**:
+
+- **400 Bad Request**: Missing `project_id` parameter
+  ```json
+  {"error": "project_id is required"}
+  ```
+
+- **403 Forbidden**: User is not project owner
+  ```json
+  {"error": "Only project owner can generate tasks"}
+  ```
+
+- **500 Internal Server Error**: AI service error or API key invalid
+  ```json
+  {"error": "AI service unavailable"}
+  ```
+
+#### Fallback Behavior
+
+When `GEMINI_API_KEY` is not configured or API fails:
+- Returns template-based task suggestions
+- Based on project status (planning vs active)
+- Provides 3-5 generic but relevant tasks
+- Response includes `enabled: false` to indicate AI is unavailable
+
+#### Performance
+
+- **Response Time**: Typically 2-5 seconds for task generation
+- **Concurrent Requests**: Supported (API key has rate limits)
+- **Cost**: Charged per API call to Google Gemini (free tier available)
+
+#### Best Practices
+
+1. **Review Before Creating**: Use preview mode first to ensure quality
+2. **Provide Context**: Include custom description for more relevant tasks
+3. **Edit Generated Tasks**: AI suggestions are starting points, refine as needed
+4. **Combine with Manual**: Use AI for initial breakdown, add specific tasks manually
+5. **Iterate**: Regenerate if initial suggestions don't meet expectations
+
+---
+
 ## 🛠️ Tech Stack
 
 ### Frontend
@@ -159,6 +416,7 @@ SynergyOS/
 - **Redis 7** - Caching and session storage
 - **Celery** - Asynchronous task processing
 - **JWT** - Secure authentication
+- **Google Gemini 2.5 Flash** - AI task generation and analysis
 
 ### DevOps & Infrastructure
 - **Docker & Docker Compose** - Containerization
@@ -261,6 +519,23 @@ Response (200 OK):
 - `GET /api/team-dashboard/` - Get team member dashboard data
 - `GET /api/team-dashboard/my-tasks/` - Get assigned tasks
 
+### AI-Powered Endpoints
+
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| **POST** | `/api/ai/generate_tasks/` | **Generate multiple tasks for project** | Yes (Owner) |
+| POST | `/api/ai/task_suggestions/` | Generate 5 task suggestions | Yes |
+| POST | `/api/ai/parse_nl_task/` | Parse natural language task | Yes |
+| POST | `/api/ai/risk_analysis/` | Analyze project risks | Yes |
+| POST | `/api/ai/prioritize_tasks/` | Get task prioritization | Yes |
+| POST | `/api/ai/generate_insights/` | User productivity insights | Yes |
+| POST | `/api/ai/project_summary/` | AI project summary | Yes |
+| POST | `/api/tasks/{id}/ai_breakdown_task/` | Break task into subtasks | Yes |
+| POST | `/api/tasks/{id}/ai_suggest_due_date/` | Suggest due date | Yes |
+| POST | `/api/tasks/ai_extract_meeting_tasks/` | Extract tasks from meeting notes | Yes |
+
+**Note**: All AI endpoints require `GEMINI_API_KEY` to be configured in environment variables. See [AI Features Documentation](#-ai-features-documentation) for detailed usage.
+
 ## 🐳 Docker Services
 
 The application runs as 7 interconnected Docker services:
@@ -288,6 +563,7 @@ Data is persisted across container restarts:
 ### Prerequisites
 - Docker Desktop (Windows/Mac) or Docker Engine (Linux)
 - Git
+- (Optional) Google Gemini API Key for AI features - Get it at [Google AI Studio](https://makersuite.google.com/app/apikey)
 
 ### Local Development
 
@@ -303,9 +579,10 @@ cd Synergy
 cp .env.example .env
 
 # Edit .env and set your values:
-# - SECRET_KEY (generate with: python generate_secret_key.py)
+# - SECRET_KEY (generate with: openssl rand -base64 32)
 # - DATABASE_URL
 # - DEBUG=True for development
+# - GEMINI_API_KEY=your_api_key (optional, for AI features)
 ```
 
 3. **Build and start:**
@@ -555,6 +832,7 @@ class SecurityEvent(models.Model):
    - [ ] Set up SSL certificates in nginx config
    - [ ] Configure email backend (SMTP)
    - [ ] Set proper CORS origins
+   - [ ] (Optional) Set `GEMINI_API_KEY` for AI features
 
 2. **Security**
    - [ ] Enable HTTPS only
@@ -656,11 +934,12 @@ SynergyOS successfully demonstrates the implementation of a production-ready, en
 
 ### Future Work
 
-1. **AI Integration**: Machine learning models for task prioritization and deadline prediction
+1. **Enhanced AI Features**: Expand machine learning models for milestone predictions and resource allocation optimization
 2. **WebSocket Scaling**: Redis Pub/Sub for multi-server WebSocket synchronization
 3. **Mobile Apps**: Native iOS and Android applications using React Native
-4. **Analytics Dashboard**: Real-time metrics and predictive analytics
+4. **Advanced Analytics**: Real-time metrics dashboard with predictive analytics
 5. **Kubernetes Deployment**: Container orchestration for cloud-native scaling
+6. **AI Model Customization**: Fine-tuned models for industry-specific task generation
 
 ---
 

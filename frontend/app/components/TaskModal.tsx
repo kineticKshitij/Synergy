@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { AIDueDateSuggestion } from './AIDueDateSuggestion';
 
 interface TaskModalProps {
     isOpen: boolean;
@@ -260,6 +261,18 @@ export function TaskModal({ isOpen, onClose, onSubmit, onDelete, projectId, task
                             />
                         </div>
                     </div>
+
+                    {/* AI Due Date Suggestion */}
+                    {formData.title && (
+                        <AIDueDateSuggestion
+                            taskTitle={formData.title}
+                            taskDescription={formData.description}
+                            priority={formData.priority}
+                            estimatedHours={formData.estimated_hours ? parseFloat(formData.estimated_hours) : undefined}
+                            currentDueDate={formData.due_date}
+                            onSelectDate={(date) => setFormData({ ...formData, due_date: date })}
+                        />
+                    )}
 
                     {/* Impact on Project Progress */}
                     <div>

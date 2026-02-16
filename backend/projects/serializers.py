@@ -266,8 +266,11 @@ class TeamMemberDashboardSerializer(serializers.Serializer):
     stats = serializers.SerializerMethodField()
     
     def get_projects(self, user):
-        """Get projects where user is a team member"""
-        projects = user.projects.all()
+        """Get projects where user is owner or team member"""
+        from django.db.models import Q
+        projects = Project.objects.filter(
+            Q(owner=user) | Q(team_members=user)
+        ).distinct()
         return ProjectSerializer(projects, many=True, context=self.context).data
     
     def get_assigned_tasks(self, user):
@@ -279,7 +282,10 @@ class TeamMemberDashboardSerializer(serializers.Serializer):
     
     def get_recent_messages(self, user):
         """Get recent messages from projects user is part of"""
-        user_projects = user.projects.all()
+        from django.db.models import Q
+        user_projects = Project.objects.filter(
+            Q(owner=user) | Q(team_members=user)
+        ).distinct()
         messages = ProjectMessage.objects.filter(
             project__in=user_projects
         ).select_related('sender', 'project').prefetch_related(
@@ -289,7 +295,10 @@ class TeamMemberDashboardSerializer(serializers.Serializer):
     
     def get_stats(self, user):
         """Get user statistics"""
-        total_projects = user.projects.count()
+        from django.db.models import Q
+        total_projects = Project.objects.filter(
+            Q(owner=user) | Q(team_members=user)
+        ).distinct().count()
         total_tasks = Task.objects.filter(assigned_to=user).count()
         completed_tasks = Task.objects.filter(assigned_to=user, status='done').count()
         pending_tasks = Task.objects.filter(
@@ -297,7 +306,9 @@ class TeamMemberDashboardSerializer(serializers.Serializer):
         ).exclude(status='done').count()
         
         # Unread messages count
-        user_projects = user.projects.all()
+        user_projects = Project.objects.filter(
+            Q(owner=user) | Q(team_members=user)
+        ).distinct()
         unread_messages = ProjectMessage.objects.filter(
             project__in=user_projects
         ).exclude(read_by=user).count()

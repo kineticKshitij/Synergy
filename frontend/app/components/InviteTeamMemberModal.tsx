@@ -49,7 +49,7 @@ export default function InviteTeamMemberModal({
       const response = await inviteTeamMember(formData);
       setSuccess({
         customEmail: response.custom_email,
-        username: response.user.username,
+        username: response.user?.username || 'New User',
       });
       
       // Reset form after 3 seconds and close

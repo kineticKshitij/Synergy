@@ -4,7 +4,13 @@ import { useAuth } from '~/contexts/AuthContext';
 import { ProtectedRoute } from '~/components/ProtectedRoute';
 import { Navbar } from '~/components/Navbar';
 import { AIInsightsCard } from '~/components/AIInsightsCard';
+import { AITaskSuggestionsCard } from '~/components/AITaskSuggestionsCard';
+import { AIRiskAnalysisCard } from '~/components/AIRiskAnalysisCard';
 import { AIAssistant } from '~/components/AIAssistant';
+import { KPICard } from '~/components/KPICard';
+import { ActivityTimeline } from '~/components/ActivityTimeline';
+import { ProjectHealthGrid } from '~/components/ProjectHealthGrid';
+import { UpcomingMilestones } from '~/components/UpcomingMilestones';
 import authService from '~/services/auth.service';
 import type { DashboardStats } from '~/services/auth.service';
 import { projectService, type Project } from '~/services/project.service';
@@ -29,6 +35,9 @@ import {
     Plus,
     UserPlus,
     FileText,
+    Target,
+    Activity,
+    BarChart3,
 } from 'lucide-react';
 
 export function meta() {
@@ -271,7 +280,56 @@ function DashboardContent() {
                         Here’s a snapshot of how your workspace is performing today.
                     </p>
                 </div>
-
+                {/* Top KPI Row */}
+                <div
+                    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 animate-slideInUp"
+                    style={{ animationDelay: '0.1s' }}
+                >
+                    <KPICard
+                        title="Active Projects"
+                        value={stats?.stats.total_projects || 0}
+                        icon={<FolderKanban className="w-5 h-5" />}
+                        color="blue"
+                        onClick={() => navigate('/projects')}
+                        trend={{
+                            value: 12,
+                            direction: 'up',
+                        }}
+                    />
+                    <KPICard
+                        title="Pending Tasks"
+                        value={stats?.stats.active_tasks || 0}
+                        icon={<CheckSquare className="w-5 h-5" />}
+                        color="green"
+                        subtitle={
+                            (stats?.stats.overdue_tasks || 0) > 0
+                                ? `${stats?.stats.overdue_tasks} overdue`
+                                : 'All on track'
+                        }
+                    />
+                    <KPICard
+                        title="Team Utilization"
+                        value={`${Math.round(((stats?.stats.active_tasks || 0) / (stats?.stats.team_members || 1)) * 10)}%`}
+                        icon={<Users className="w-5 h-5" />}
+                        color="purple"
+                        onClick={() => navigate('/team')}
+                    />
+                    <KPICard
+                        title="AI Insights Score"
+                        value={`${stats?.ai_insights.productivity_score || 0}%`}
+                        icon={<Brain className="w-5 h-5" />}
+                        color="indigo"
+                        trend={{
+                            value: stats?.ai_insights.trend === 'improving' ? 8 : stats?.ai_insights.trend === 'declining' ? -5 : 0,
+                            direction:
+                                stats?.ai_insights.trend === 'improving'
+                                    ? 'up'
+                                    : stats?.ai_insights.trend === 'declining'
+                                    ? 'down'
+                                    : 'neutral',
+                        }}
+                    />
+                </div>
                 {/* Proof Upload Alerts */}
                 {recentProofs.length > 0 && (
                     <div
@@ -294,7 +352,7 @@ function DashboardContent() {
                                                 className="text-[13px] text-blue-900/90 dark:text-blue-100/90"
                                             >
                                                 <span className="font-medium">
-                                                    {proof.user.username}
+                                                    {proof.user?.username || 'Unknown User'}
                                                 </span>{' '}
                                                 uploaded{' '}
                                                 <span className="font-mono text-xs">
@@ -313,6 +371,83 @@ function DashboardContent() {
                         </div>
                     </div>
                 )}
+
+                {/* AI-Powered Insights Section */}
+                <div
+                    className="mb-8 animate-slideInDown"
+                    style={{ animationDelay: '0.15s' }}
+                >
+                    <h3 className="text-lg md:text-xl font-semibold text-slate-900 dark:text-slate-50 mb-4 flex items-center gap-2">
+                        <Brain className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                        AI-Powered Insights
+                    </h3>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+                        <AITaskSuggestionsCard />
+                        <AIRiskAnalysisCard />
+                    </div>
+                </div>
+
+                {/* Activity Timeline & Milestones */}
+                <div
+                    className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 animate-slideInUp"
+                    style={{ animationDelay: '0.2s' }}
+                >
+                    {/* Activity Timeline */}
+                    <div className="bg-white/90 dark:bg-slate-900/90 rounded-xl border border-slate-200/70 dark:border-slate-800 p-5 shadow-sm">
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-2">
+                                <Activity className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-50">
+                                    Recent Activity
+                                </h3>
+                            </div>
+                        </div>
+                        <ActivityTimeline limit={8} />
+                    </div>
+
+                    {/* Upcoming Milestones */}
+                    <div className="bg-white/90 dark:bg-slate-900/90 rounded-xl border border-slate-200/70 dark:border-slate-800 p-5 shadow-sm">
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-2">
+                                <Target className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-50">
+                                    Upcoming Milestones
+                                </h3>
+                            </div>
+                            <button
+                                onClick={() => navigate('/projects')}
+                                className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                            >
+                                View all
+                            </button>
+                        </div>
+                        <UpcomingMilestones limit={5} />
+                    </div>
+                </div>
+
+                {/* Project Health Overview */}
+                <div
+                    className="mb-8 animate-slideInUp"
+                    style={{ animationDelay: '0.25s' }}
+                >
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-2">
+                            <BarChart3 className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                            <h3 className="text-lg md:text-xl font-semibold text-slate-900 dark:text-slate-50">
+                                Project Health Overview
+                            </h3>
+                        </div>
+                        <button
+                            onClick={() => navigate('/projects')}
+                            className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline"
+                        >
+                            View all projects
+                        </button>
+                    </div>
+                    <div className="bg-white/90 dark:bg-slate-900/90 rounded-xl border border-slate-200/70 dark:border-slate-800 p-5 shadow-sm">
+                        <ProjectHealthGrid />
+                    </div>
+                </div>
 
                 {/* Ongoing Projects */}
                 {loadingProjects ? (

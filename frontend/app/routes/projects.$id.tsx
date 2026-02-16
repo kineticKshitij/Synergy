@@ -6,6 +6,9 @@ import { ProtectedRoute } from '~/components/ProtectedRoute';
 import { TaskModal } from '~/components/TaskModal';
 import { Navbar } from '~/components/Navbar';
 import InviteTeamMemberModal from '~/components/InviteTeamMemberModal';
+import { AITaskBreakdownModal } from '~/components/AITaskBreakdownModal';
+import { AIMeetingNotesExtractor } from '~/components/AIMeetingNotesExtractor';
+import { useKeyboardShortcuts } from '~/hooks/useKeyboardShortcuts';
 import { Eye, X, FileText, Send, MessageSquare, Activity, Download } from 'lucide-react';
 
 interface Project {
@@ -61,6 +64,9 @@ function ProjectDetailsContent() {
     const [activities, setActivities] = useState<any[]>([]);
     const [messages, setMessages] = useState<any[]>([]);
     const [newMessage, setNewMessage] = useState('');
+    const [showBreakdownModal, setShowBreakdownModal] = useState(false);
+    const [selectedTaskForBreakdown, setSelectedTaskForBreakdown] = useState<Task | null>(null);
+    const [showMeetingNotesModal, setShowMeetingNotesModal] = useState(false);
 
     useEffect(() => {
         loadProject();
@@ -68,6 +74,40 @@ function ProjectDetailsContent() {
         loadActivities();
         loadMessages();
     }, [id]);
+
+    // Keyboard shortcuts for AI features
+    useKeyboardShortcuts([
+        {
+            key: 'm',
+            ctrlKey: true,
+            shiftKey: true,
+            callback: () => setShowMeetingNotesModal(true),
+            description: 'Open Meeting Notes Extractor'
+        },
+        {
+            key: 'b',
+            ctrlKey: true,
+            shiftKey: true,
+            callback: () => {
+                // Open breakdown for first selected/visible task
+                if (tasks.length > 0) {
+                    setSelectedTaskForBreakdown(tasks[0]);
+                    setShowBreakdownModal(true);
+                }
+            },
+            description: 'AI Breakdown for first task'
+        },
+        {
+            key: 'n',
+            ctrlKey: true,
+            shiftKey: true,
+            callback: () => {
+                setEditingTask(null);
+                setIsTaskModalOpen(true);
+            },
+            description: 'Create new task'
+        }
+    ], !showBreakdownModal && !showMeetingNotesModal && !isTaskModalOpen);
 
     const loadProject = async () => {
         try {
@@ -122,6 +162,49 @@ function ProjectDetailsContent() {
         } catch (error) {
             console.error('Failed to send message:', error);
             alert('Failed to send message');
+        }
+    };
+
+    const handleCreateSubtasks = async (subtasks: any[]) => {
+        try {
+            for (const subtask of subtasks) {
+                await projectService.createTask({
+                    project: Number(id),
+                    title: subtask.title,
+                    description: subtask.description,
+                    priority: subtask.priority,
+                    estimated_hours: subtask.estimated_hours,
+                    status: 'todo'
+                });
+            }
+            await loadTasks();
+            await loadProject();
+            alert(`Successfully created ${subtasks.length} subtasks!`);
+        } catch (error) {
+            console.error('Failed to create subtasks:', error);
+            alert('Failed to create some subtasks');
+        }
+    };
+
+    const handleExtractedTasks = async (extractedTasks: any[]) => {
+        try {
+            for (const task of extractedTasks) {
+                await projectService.createTask({
+                    project: Number(id),
+                    title: task.title,
+                    description: task.description,
+                    priority: task.priority,
+                    estimated_hours: task.estimated_hours,
+                    due_date: task.due_date_mentioned,
+                    status: 'todo'
+                });
+            }
+            await loadTasks();
+            await loadProject();
+            alert(`Successfully created ${extractedTasks.length} tasks from meeting notes!`);
+        } catch (error) {
+            console.error('Failed to create tasks:', error);
+            alert('Failed to create some tasks');
         }
     };
 
@@ -318,6 +401,13 @@ function ProjectDetailsContent() {
                             ← Back to Projects
                         </Link>
                         <div className="flex gap-3">
+                            <button
+                                onClick={() => setShowMeetingNotesModal(true)}
+                                className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-lg transition-all transform hover:scale-105 flex items-center gap-2"
+                                title="Extract tasks from meeting notes"
+                            >
+                                📝 Meeting Notes
+                            </button>
                             {project.status !== 'completed' && (
                                 <button
                                     onClick={handleMarkProjectComplete}
@@ -547,6 +637,17 @@ function ProjectDetailsContent() {
                                                     </button>
                                                 )}
                                                 <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setSelectedTaskForBreakdown(task);
+                                                        setShowBreakdownModal(true);
+                                                    }}
+                                                    className="px-3 py-1 bg-purple-600 hover:bg-purple-700 rounded text-sm transition-colors flex items-center gap-1"
+                                                    title="AI Task Breakdown"
+                                                >
+                                                    🤖 AI Breakdown
+                                                </button>
+                                                <button
                                                     className="text-gray-400 hover:text-white transition-colors"
                                                     title="Edit task"
                                                 >
@@ -753,6 +854,28 @@ function ProjectDetailsContent() {
                         setSelectedTaskForProof(null);
                         setTaskProofs([]);
                     }}
+                />
+            )}
+
+            {/* AI Task Breakdown Modal */}
+            {showBreakdownModal && selectedTaskForBreakdown && (
+                <AITaskBreakdownModal
+                    taskId={selectedTaskForBreakdown.id}
+                    taskTitle={selectedTaskForBreakdown.title}
+                    onClose={() => {
+                        setShowBreakdownModal(false);
+                        setSelectedTaskForBreakdown(null);
+                    }}
+                    onCreateSubtasks={handleCreateSubtasks}
+                />
+            )}
+
+            {/* AI Meeting Notes Extractor */}
+            {showMeetingNotesModal && (
+                <AIMeetingNotesExtractor
+                    projectId={Number(id)}
+                    onTasksExtracted={handleExtractedTasks}
+                    onClose={() => setShowMeetingNotesModal(false)}
                 />
             )}
         </div>

@@ -3,7 +3,9 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '~/contexts/AuthContext';
 import { NotificationCenter } from '~/components/NotificationCenter';
 import { ThemeToggle } from '~/components/ThemeToggle';
-import { Menu, X, User, Settings, LogOut } from 'lucide-react';
+import { GlobalSearch } from '~/components/GlobalSearch';
+import tokenStorage from '~/services/tokenStorage';
+import { Menu, X, User, Settings, LogOut, Search, Plus, BarChart3, FileText, Bell } from 'lucide-react';
 
 export function Navbar() {
     const location = useLocation();
@@ -11,6 +13,9 @@ export function Navbar() {
     const [scrolled, setScrolled] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [userMenuOpen, setUserMenuOpen] = useState(false);
+    const [searchOpen, setSearchOpen] = useState(false);
+    const [notificationOpen, setNotificationOpen] = useState(false);
+    const [unreadCount, setUnreadCount] = useState(0);
 
     useEffect(() => {
         const handleScroll = () => {
@@ -18,6 +23,47 @@ export function Navbar() {
         };
         window.addEventListener('scroll', handleScroll);
         return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
+
+    // Fetch unread notification count
+    useEffect(() => {
+        if (user) {
+            fetchUnreadCount();
+            // Poll every 30 seconds
+            const interval = setInterval(fetchUnreadCount, 30000);
+            return () => clearInterval(interval);
+        }
+    }, [user]);
+
+    const fetchUnreadCount = async () => {
+        try {
+            const token = tokenStorage.getAccessToken();
+            const response = await fetch('http://localhost/api/notifications/unread_count/', {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                setUnreadCount(data.unread_count || 0);
+            }
+        } catch (error) {
+            console.error('Failed to fetch unread count:', error);
+        }
+    };
+
+    // Global keyboard shortcut for search (Cmd/Ctrl + K)
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+                e.preventDefault();
+                setSearchOpen(true);
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
     }, []);
 
     const isActive = (path: string) => location.pathname === path;
@@ -33,9 +79,11 @@ export function Navbar() {
                 <div className="flex items-center justify-between">
                     {/* Logo */}
                     <Link to="/" className="flex items-center gap-3 group">
-                        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center transform group-hover:scale-110 transition-transform">
-                            <span className="text-white font-bold text-xl">S</span>
-                        </div>
+                        <img 
+                            src="/synergy-logo.svg" 
+                            alt="SynergyOS Logo" 
+                            className="w-10 h-10 transform group-hover:scale-110 transition-transform"
+                        />
                         <div>
                             <h1 className="text-xl font-bold text-white group-hover:text-blue-400 transition-colors">
                                 SynergyOS
@@ -101,33 +149,62 @@ export function Navbar() {
                                 </Link>
                                 <Link
                                     to="/projects"
-                                    className={`text-sm font-medium transition-colors ${isActive('/projects') || location.pathname.startsWith('/projects')
+                                    className={`text-sm font-medium transition-colors ${isActive('/projects')
                                             ? 'text-blue-400'
                                             : 'text-gray-300 hover:text-white'
                                         }`}
                                 >
                                     Projects
                                 </Link>
-                                {(user.role === 'manager' || user.role === 'admin') && (
-                                    <Link
-                                        to="/team"
-                                        className={`text-sm font-medium transition-colors ${isActive('/team')
-                                                ? 'text-blue-400'
-                                                : 'text-gray-300 hover:text-white'
-                                            }`}
-                                    >
-                                        Team
-                                    </Link>
-                                )}
                                 <Link
-                                    to="/profile"
-                                    className={`text-sm font-medium transition-colors ${isActive('/profile')
+                                    to="/team"
+                                    className={`text-sm font-medium transition-colors ${isActive('/team')
                                             ? 'text-blue-400'
                                             : 'text-gray-300 hover:text-white'
                                         }`}
                                 >
-                                    Profile
+                                    Team
                                 </Link>
+                                <Link
+                                    to="/kanban"
+                                    className={`text-sm font-medium transition-colors ${isActive('/kanban')
+                                            ? 'text-blue-400'
+                                            : 'text-gray-300 hover:text-white'
+                                        }`}
+                                >
+                                    Kanban
+                                </Link>
+                                <Link
+                                    to="/templates"
+                                    className={`text-sm font-medium transition-colors ${isActive('/templates')
+                                            ? 'text-blue-400'
+                                            : 'text-gray-300 hover:text-white'
+                                        }`}
+                                >
+                                    Templates
+                                </Link>
+                                <Link
+                                    to="/reports"
+                                    className={`text-sm font-medium transition-colors ${isActive('/reports')
+                                            ? 'text-blue-400'
+                                            : 'text-gray-300 hover:text-white'
+                                        }`}
+                                >
+                                    Reports
+                                </Link>
+
+                                {/* Search Button */}
+                                <button
+                                    onClick={() => setSearchOpen(true)}
+                                    className="flex items-center gap-2 px-3 py-1.5 bg-gray-800/50 hover:bg-gray-800 rounded-lg transition-all text-gray-400 hover:text-white group"
+                                >
+                                    <Search className="w-4 h-4" />
+                                    <span className="text-xs hidden lg:inline">Search</span>
+                                    <kbd className="hidden lg:inline px-1.5 py-0.5 text-xs bg-gray-700 rounded border border-gray-600">
+                                        ⌘K
+                                    </kbd>
+                                </button>
+
                                 <Link
                                     to="/security"
                                     className={`text-sm font-medium transition-colors ${isActive('/security')
@@ -138,8 +215,18 @@ export function Navbar() {
                                     Security
                                 </Link>
 
-                                {/* Notification Center */}
-                                <NotificationCenter />
+                                {/* Notification Bell */}
+                                <button
+                                    onClick={() => setNotificationOpen(!notificationOpen)}
+                                    className="relative p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-all"
+                                >
+                                    <Bell className="w-5 h-5" />
+                                    {unreadCount > 0 && (
+                                        <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                                            {unreadCount > 9 ? '9+' : unreadCount}
+                                        </span>
+                                    )}
+                                </button>
 
                                 {/* Theme Toggle */}
                                 <ThemeToggle />
@@ -295,6 +382,13 @@ export function Navbar() {
                                         </Link>
                                     )}
                                     <Link
+                                        to="/kanban"
+                                        className="text-gray-300 hover:text-white transition-colors"
+                                        onClick={() => setMobileMenuOpen(false)}
+                                    >
+                                        Kanban
+                                    </Link>
+                                    <Link
                                         to="/profile"
                                         className="text-gray-300 hover:text-white transition-colors"
                                         onClick={() => setMobileMenuOpen(false)}
@@ -323,6 +417,12 @@ export function Navbar() {
                     </div>
                 )}
             </div>
+
+            {/* Global Search */}
+            <GlobalSearch isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
+            
+            {/* Notification Center */}
+            <NotificationCenter isOpen={notificationOpen} onClose={() => setNotificationOpen(false)} />
         </nav>
     );
 }

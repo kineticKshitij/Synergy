@@ -186,6 +186,12 @@ test-output/
 *.xml
 junit.xml
 pytest_cache/
+test_*.py
+test_*.ps1
+time_*.csv
+team_*.pdf
+diagrams.html
+workflow.html
 
 # Security
 *.pem

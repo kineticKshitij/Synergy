@@ -304,6 +304,162 @@ class TaskViewSet(viewsets.ModelViewSet):
             'updated_count': updated_count,
             'message': f'Successfully updated {updated_count} task(s)'
         })
+    
+    @action(detail=False, methods=['post'])
+    def ai_breakdown_task(self, request):
+        """AI-powered task breakdown into subtasks"""
+        from ai_service import ai_service
+        
+        task_id = request.data.get('task_id')
+        
+        if not task_id:
+            return Response(
+                {'error': 'task_id is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            task = get_object_or_404(Task, id=task_id)
+            
+            # Check access
+            if not (task.project.owner == request.user or request.user in task.project.team_members.all()):
+                return Response(
+                    {'error': 'You do not have access to this task'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            
+            # Prepare task data for AI
+            task_data = {
+                'title': task.title,
+                'description': task.description,
+                'project_context': f"{task.project.name} - {task.project.description}",
+                'estimated_hours': task.estimated_hours or 8,
+                'priority': task.priority
+            }
+            
+            # Get AI breakdown
+            breakdown = ai_service.breakdown_task_into_subtasks(task_data)
+            
+            return Response({
+                'success': True,
+                'breakdown': breakdown,
+                'original_task': {
+                    'id': task.id,
+                    'title': task.title
+                },
+                'enabled': ai_service.enabled
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    @action(detail=False, methods=['post'])
+    def ai_suggest_due_date(self, request):
+        """AI-powered due date suggestion based on workload"""
+        from ai_service import ai_service
+        
+        # Task data can be from an existing task or new task being created
+        task_data = {
+            'title': request.data.get('title', ''),
+            'description': request.data.get('description', ''),
+            'priority': request.data.get('priority', 'medium'),
+            'estimated_hours': request.data.get('estimated_hours', 4)
+        }
+        
+        if not task_data['title']:
+            return Response(
+                {'error': 'title is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            # Calculate user's current workload
+            user = request.user
+            user_tasks = Task.objects.filter(
+                models.Q(project__owner=user) | models.Q(project__team_members=user),
+                status__in=['todo', 'in_progress']
+            ).distinct()
+            
+            # Calculate committed hours in next 7 days
+            from datetime import datetime, timedelta
+            week_from_now = datetime.now() + timedelta(days=7)
+            upcoming_tasks = user_tasks.filter(
+                due_date__lte=week_from_now,
+                due_date__gte=datetime.now()
+            )
+            
+            committed_hours = sum(t.estimated_hours or 4 for t in upcoming_tasks)
+            
+            user_workload = {
+                'active_task_count': user_tasks.count(),
+                'committed_hours_week': committed_hours,
+                'available_hours_per_day': 6,  # Configurable
+                'upcoming_deadline_count': upcoming_tasks.count()
+            }
+            
+            # Get AI suggestion
+            suggestion = ai_service.suggest_due_date(task_data, user_workload)
+            
+            return Response({
+                'success': True,
+                'suggestion': suggestion,
+                'current_workload': user_workload,
+                'enabled': ai_service.enabled
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    @action(detail=False, methods=['post'])
+    def ai_extract_meeting_tasks(self, request):
+        """Extract action items from meeting notes"""
+        from ai_service import ai_service
+        
+        meeting_notes = request.data.get('meeting_notes', '')
+        project_id = request.data.get('project_id')
+        
+        if not meeting_notes:
+            return Response(
+                {'error': 'meeting_notes is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            project_context = ""
+            
+            # If project specified, get context and verify access
+            if project_id:
+                project = get_object_or_404(Project, id=project_id)
+                
+                if not (project.owner == request.user or request.user in project.team_members.all()):
+                    return Response(
+                        {'error': 'You do not have access to this project'},
+                        status=status.HTTP_403_FORBIDDEN
+                    )
+                
+                project_context = f"{project.name} - {project.description}"
+            
+            # Extract tasks using AI
+            extraction = ai_service.extract_tasks_from_meeting_notes(meeting_notes, project_context)
+            
+            return Response({
+                'success': True,
+                'extraction': extraction,
+                'project_id': project_id,
+                'enabled': ai_service.enabled
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class ProjectActivityViewSet(viewsets.ReadOnlyModelViewSet):
@@ -502,8 +658,11 @@ class TeamMemberDashboardView(viewsets.ViewSet):
     
     @action(detail=False, methods=['get'])
     def my_projects(self, request):
-        """Get all projects where user is a team member"""
-        projects = request.user.projects.all()
+        """Get all projects where user is owner or team member"""
+        from django.db.models import Q
+        projects = Project.objects.filter(
+            Q(owner=request.user) | Q(team_members=request.user)
+        ).distinct()
         serializer = ProjectSerializer(projects, many=True, context={'request': request})
         return Response(serializer.data)
     
@@ -903,6 +1062,108 @@ class AIViewSet(viewsets.ViewSet):
                 'summary': summary,
                 'enabled': ai_service.enabled
             }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    @action(detail=False, methods=['post'])
+    def generate_tasks(self, request):
+        """Generate multiple tasks for a project using AI"""
+        from ai_service import ai_service
+        
+        project_id = request.data.get('project_id')
+        custom_description = request.data.get('description', '').strip()
+        auto_create = request.data.get('auto_create', False)
+        
+        if not project_id:
+            return Response(
+                {'error': 'project_id is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            project = get_object_or_404(Project, id=project_id)
+            
+            # Check if user is project owner (only owner can create tasks)
+            if project.owner != request.user:
+                return Response(
+                    {'error': 'Only project owner can generate tasks'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            
+            # Prepare existing tasks context
+            existing_tasks = project.tasks.all()
+            existing_tasks_data = [
+                {
+                    'title': t.title,
+                    'status': t.status,
+                    'priority': t.priority
+                }
+                for t in existing_tasks
+            ]
+            
+            # Prepare project data
+            project_data = {
+                'name': project.name,
+                'description': project.description,
+                'status': project.status,
+                'priority': project.priority
+            }
+            
+            # Generate tasks using AI
+            generated_tasks = ai_service.generate_tasks_for_project(
+                project_data,
+                existing_tasks_data,
+                custom_description if custom_description else None
+            )
+            
+            created_tasks = []
+            
+            # If auto_create is True, create the tasks in the database
+            if auto_create and generated_tasks:
+                for task_data in generated_tasks:
+                    task = Task.objects.create(
+                        project=project,
+                        title=task_data['title'],
+                        description=task_data['description'],
+                        priority=task_data['priority'],
+                        estimated_hours=task_data['estimated_hours'],
+                        status='todo',
+                        assigned_to=None  # No default assignment
+                    )
+                    
+                    # Log activity
+                    ProjectActivity.objects.create(
+                        project=project,
+                        user=request.user,
+                        action='ai_task_created',
+                        description=f'AI created task: {task.title}',
+                        metadata={
+                            'ai_generated': True,
+                            'rationale': task_data.get('rationale', ''),
+                            'custom_description': custom_description if custom_description else None
+                        }
+                    )
+                    
+                    # Serialize the created task
+                    serializer = TaskSerializer(task)
+                    created_tasks.append(serializer.data)
+            
+            response_data = {
+                'success': True,
+                'project_id': project_id,
+                'suggestions': generated_tasks,
+                'enabled': ai_service.enabled
+            }
+            
+            if auto_create:
+                response_data['created_tasks'] = created_tasks
+                response_data['created_count'] = len(created_tasks)
+            
+            return Response(response_data, status=status.HTTP_201_CREATED if auto_create else status.HTTP_200_OK)
             
         except Exception as e:
             return Response(

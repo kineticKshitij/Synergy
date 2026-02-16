@@ -20,6 +20,8 @@ from django.urls import path, include
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/auth/', include('accounts.urls')),
+    path('api/reports/', include('reports.urls')),  # Move reports BEFORE generic api/ routes
     path('api/', include('projects.urls')),
     path('api/', include('webhooks.urls')),
+    path('api/', include('notifications.urls')),
 ]
