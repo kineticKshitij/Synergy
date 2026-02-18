@@ -185,7 +185,13 @@ export default function KanbanBoard() {
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div className="flex items-center gap-4">
               <button
-                onClick={() => navigate('/team-dashboard')}
+                onClick={() => {
+                  // Navigate to appropriate dashboard based on user role
+                  const dashboardRoute = (user?.role === 'manager' || user?.role === 'admin') 
+                    ? '/dashboard' 
+                    : '/team-dashboard';
+                  navigate(dashboardRoute);
+                }}
                 className="p-3 bg-gray-100 hover:bg-gray-200 rounded-xl shadow-sm hover:shadow-md transition-all group"
                 title="Back to Dashboard"
               >
