@@ -14,7 +14,6 @@ export default [
     route("team-dashboard/task/:id", "routes/team-dashboard.task.$id.tsx"),
     route("team-dashboard/project/:id", "routes/team-dashboard.project.$id.tsx"),
     route("profile", "routes/profile.tsx"),
-    route("security", "routes/security.tsx"),
     route("settings", "routes/settings.tsx"),
     route("projects", "routes/projects.tsx"),
     route("projects/new", "routes/projects.new.tsx"),

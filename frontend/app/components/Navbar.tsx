@@ -117,12 +117,6 @@ export function Navbar() {
                                 >
                                     How It Works
                                 </a>
-                                <a
-                                    href="#security"
-                                    className="text-sm font-medium text-gray-300 hover:text-white transition-colors"
-                                >
-                                    Security
-                                </a>
                                 <Link
                                     to="/login"
                                     className="text-sm font-medium text-gray-300 hover:text-white transition-colors"
@@ -205,16 +199,6 @@ export function Navbar() {
                                     </kbd>
                                 </button>
 
-                                <Link
-                                    to="/security"
-                                    className={`text-sm font-medium transition-colors ${isActive('/security')
-                                            ? 'text-blue-400'
-                                            : 'text-gray-300 hover:text-white'
-                                        }`}
-                                >
-                                    Security
-                                </Link>
-
                                 {/* Notification Bell */}
                                 <button
                                     onClick={() => setNotificationOpen(!notificationOpen)}
@@ -264,7 +248,7 @@ export function Navbar() {
                                                     Profile
                                                 </Link>
                                                 <Link
-                                                    to="/security"
+                                                    to="/settings"
                                                     onClick={() => setUserMenuOpen(false)}
                                                     className="flex items-center gap-3 px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
                                                 >
@@ -334,13 +318,6 @@ export function Navbar() {
                                     >
                                         How It Works
                                     </a>
-                                    <a
-                                        href="#security"
-                                        className="text-gray-300 hover:text-white transition-colors"
-                                        onClick={() => setMobileMenuOpen(false)}
-                                    >
-                                        Security
-                                    </a>
                                     <Link
                                         to="/login"
                                         className="text-gray-300 hover:text-white transition-colors"
@@ -396,11 +373,11 @@ export function Navbar() {
                                         Profile
                                     </Link>
                                     <Link
-                                        to="/security"
+                                        to="/settings"
                                         className="text-gray-300 hover:text-white transition-colors"
                                         onClick={() => setMobileMenuOpen(false)}
                                     >
-                                        Security
+                                        Settings
                                     </Link>
                                     <button
                                         onClick={() => {

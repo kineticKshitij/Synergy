@@ -64,6 +64,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'SynergyOS.middleware.AdminIPRestrictionMiddleware',  # Restrict admin to localhost only
     'accounts.middleware.RateLimitMiddleware',  # Rate limit error handling
 ]
 
