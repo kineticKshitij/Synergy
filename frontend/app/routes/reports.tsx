@@ -30,6 +30,7 @@ function ReportsContent() {
     const [stats, setStats] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [dateRange, setDateRange] = useState('30'); // days
+    const [productivityData, setProductivityData] = useState<any[]>([]);
 
     useEffect(() => {
         fetchReportData();
@@ -68,10 +69,64 @@ function ReportsContent() {
                     activeUsers: summary.team.size,
                 });
             }
+
+            // Fetch productivity trend data (tasks completed per day/week)
+            fetchProductivityTrend(parseInt(dateRange), token);
         } catch (error) {
             console.error('Failed to fetch report data:', error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchProductivityTrend = async (days: number, token: string) => {
+        try {
+            // Fetch all tasks to calculate daily completion trend
+            const tasksRes = await fetch('http://localhost/api/tasks/', {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+
+            if (tasksRes.ok) {
+                const tasks = await tasksRes.json();
+                
+                // Generate trend data based on date range
+                const numPoints = days <= 7 ? 7 : days <= 30 ? 14 : 30;
+                const interval = Math.ceil(days / numPoints);
+                
+                const trendData = Array.from({ length: numPoints }, (_, i) => {
+                    const endDate = new Date();
+                    endDate.setDate(endDate.getDate() - (numPoints - 1 - i) * interval);
+                    endDate.setHours(23, 59, 59, 999);
+                    
+                    const startDate = new Date(endDate);
+                    startDate.setDate(endDate.getDate() - interval + 1);
+                    startDate.setHours(0, 0, 0, 0);
+                    
+                    const completed = tasks.filter((t: any) => {
+                        if (t.status !== 'done' || !t.completed_at) return false;
+                        const completedDate = new Date(t.completed_at);
+                        return completedDate >= startDate && completedDate <= endDate;
+                    }).length;
+                    
+                    const created = tasks.filter((t: any) => {
+                        const createdDate = new Date(t.created_at);
+                        return createdDate >= startDate && createdDate <= endDate;
+                    }).length;
+                    
+                    return {
+                        date: interval === 1 
+                            ? endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                            : `${startDate.getMonth() + 1}/${startDate.getDate()}-${endDate.getMonth() + 1}/${endDate.getDate()}`,
+                        completed,
+                        created,
+                        productivity: created > 0 ? Math.round((completed / created) * 100) : 0,
+                    };
+                });
+                
+                setProductivityData(trendData);
+            }
+        } catch (error) {
+            console.error('Failed to fetch productivity trend:', error);
         }
     };
 
@@ -248,18 +303,122 @@ function ReportsContent() {
                     />
                 </div>
 
-                {/* Placeholder for Charts */}
+                {/* Productivity Trends Chart */}
                 <div className="mt-8 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6">
-                    <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-50 mb-4">
+                    <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-50 mb-6 flex items-center gap-2">
+                        <TrendingUp className="w-5 h-5" />
                         Productivity Trends
                     </h3>
-                    <div className="h-64 flex items-center justify-center text-slate-400 dark:text-slate-500">
-                        <div className="text-center">
-                            <BarChart3 className="w-12 h-12 mx-auto mb-2" />
-                            <p>Chart visualization coming soon</p>
-                            <p className="text-sm">Integrate with Recharts or Chart.js</p>
+                    
+                    {loading ? (
+                        <div className="h-64 flex items-center justify-center">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                         </div>
-                    </div>
+                    ) : productivityData.length === 0 ? (
+                        <div className="h-64 flex items-center justify-center text-slate-400 dark:text-slate-500">
+                            <div className="text-center">
+                                <BarChart3 className="w-12 h-12 mx-auto mb-2" />
+                                <p>No data available for selected period</p>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="space-y-6">
+                            {/* Legend */}
+                            <div className="flex items-center justify-end gap-6 text-sm">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-4 h-4 rounded bg-gradient-to-br from-blue-500 to-blue-600"></div>
+                                    <span className="text-slate-600 dark:text-slate-400">Tasks Completed</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <div className="w-4 h-4 rounded bg-gradient-to-br from-green-500 to-green-600"></div>
+                                    <span className="text-slate-600 dark:text-slate-400">Tasks Created</span>
+                                </div>
+                            </div>
+                            
+                            {/* Chart */}
+                            <div className="h-64 flex items-end gap-2">
+                                {productivityData.map((point, index) => {
+                                    const maxValue = Math.max(
+                                        ...productivityData.map(p => Math.max(p.completed, p.created)),
+                                        1
+                                    );
+                                    const completedHeight = (point.completed / maxValue) * 100;
+                                    const createdHeight = (point.created / maxValue) * 100;
+                                    
+                                    return (
+                                        <div key={index} className="flex-1 flex flex-col gap-2">
+                                            <div className="flex-1 flex items-end gap-1 justify-center">
+                                                {/* Completed bar */}
+                                                <div 
+                                                    className="w-full max-w-[80px] bg-gradient-to-t from-blue-600 to-blue-400 rounded-t-lg transition-all duration-500 hover:from-blue-700 hover:to-blue-500 cursor-pointer group relative"
+                                                    style={{ height: `${completedHeight}%`, minHeight: point.completed > 0 ? '8px' : '0' }}
+                                                >
+                                                    <div className="absolute -top-16 left-1/2 transform -translate-x-1/2 bg-slate-900 dark:bg-slate-700 text-white text-xs px-3 py-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 shadow-lg">
+                                                        <div className="font-semibold mb-1">{point.date}</div>
+                                                        <div className="text-blue-300">✓ {point.completed} completed</div>
+                                                        <div className="text-green-300">+ {point.created} created</div>
+                                                        {point.productivity > 0 && (
+                                                            <div className="text-amber-300 mt-1">
+                                                                📈 {point.productivity}% rate
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                
+                                                {/* Created bar */}
+                                                <div 
+                                                    className="w-full max-w-[80px] bg-gradient-to-t from-green-600 to-green-400 rounded-t-lg transition-all duration-500 hover:from-green-700 hover:to-green-500 cursor-pointer group relative"
+                                                    style={{ height: `${createdHeight}%`, minHeight: point.created > 0 ? '8px' : '0' }}
+                                                >
+                                                    <div className="absolute -top-16 left-1/2 transform -translate-x-1/2 bg-slate-900 dark:bg-slate-700 text-white text-xs px-3 py-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 shadow-lg">
+                                                        <div className="font-semibold mb-1">{point.date}</div>
+                                                        <div className="text-blue-300">✓ {point.completed} completed</div>
+                                                        <div className="text-green-300">+ {point.created} created</div>
+                                                        {point.productivity > 0 && (
+                                                            <div className="text-amber-300 mt-1">
+                                                                📈 {point.productivity}% rate
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            {/* Date label */}
+                                            <div className="text-xs text-slate-600 dark:text-slate-400 text-center font-medium truncate px-1">
+                                                {point.date}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                            
+                            {/* Summary Stats */}
+                            <div className="grid grid-cols-3 gap-4 pt-4 border-t border-slate-200 dark:border-slate-700">
+                                <div className="text-center">
+                                    <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                                        {productivityData.reduce((sum, p) => sum + p.completed, 0)}
+                                    </div>
+                                    <div className="text-sm text-slate-600 dark:text-slate-400">Total Completed</div>
+                                </div>
+                                <div className="text-center">
+                                    <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+                                        {productivityData.reduce((sum, p) => sum + p.created, 0)}
+                                    </div>
+                                    <div className="text-sm text-slate-600 dark:text-slate-400">Total Created</div>
+                                </div>
+                                <div className="text-center">
+                                    <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">
+                                        {(() => {
+                                            const total = productivityData.reduce((sum, p) => sum + p.created, 0);
+                                            const completed = productivityData.reduce((sum, p) => sum + p.completed, 0);
+                                            return total > 0 ? Math.round((completed / total) * 100) : 0;
+                                        })()}%
+                                    </div>
+                                    <div className="text-sm text-slate-600 dark:text-slate-400">Completion Rate</div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </main>
         </div>
