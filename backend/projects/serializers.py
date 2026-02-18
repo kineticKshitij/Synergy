@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth.models import User
 from .models import (
     Project, Task, Comment, ProjectActivity, TaskAttachment, ProjectMessage,
-    Milestone, ProjectTemplate, TaskTemplate, MilestoneTemplate, Subtask
+    Milestone, ProjectTemplate, TaskTemplate, MilestoneTemplate, Subtask, Sprint
 )
 
 
@@ -103,6 +103,7 @@ class TaskSerializer(serializers.ModelSerializer):
             'assigned_to', 'assigned_to_id', 'assigned_to_multiple', 'assigned_to_multiple_ids',
             'depends_on', 'blocking_tasks', 'blocked_by', 'can_start',
             'due_date', 'estimated_hours', 'actual_hours', 'impact', 
+            'story_points', 'sprint',
             'time_logs', 'active_timer', 'total_time_logged',
             'subtasks', 'subtask_progress',
             'created_at', 'updated_at', 'completed_at', 'comment_count', 'has_attachments'
@@ -482,4 +483,43 @@ class ProjectTemplateSerializer(serializers.ModelSerializer):
         """Get count of task templates"""
         return obj.task_templates.count()
 
+
+class SprintSerializer(serializers.ModelSerializer):
+    """Serializer for Sprint model with computed statistics"""
+    total_points = serializers.SerializerMethodField()
+    completed_points = serializers.SerializerMethodField()
+    completion_percentage = serializers.SerializerMethodField()
+    task_count = serializers.SerializerMethodField()
+    completed_task_count = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Sprint
+        fields = [
+            'id', 'project', 'name', 'goal', 'status',
+            'start_date', 'end_date',
+            'total_points', 'completed_points', 'completion_percentage',
+            'task_count', 'completed_task_count',
+            'created_at', 'updated_at', 'completed_at'
+        ]
+        read_only_fields = ['created_at', 'updated_at', 'completed_at']
+    
+    def get_total_points(self, obj):
+        """Get total story points in sprint"""
+        return obj.get_total_points()
+    
+    def get_completed_points(self, obj):
+        """Get completed story points"""
+        return obj.get_completed_points()
+    
+    def get_completion_percentage(self, obj):
+        """Get completion percentage"""
+        return obj.get_completion_percentage()
+    
+    def get_task_count(self, obj):
+        """Get total number of tasks in sprint"""
+        return obj.tasks.count()
+    
+    def get_completed_task_count(self, obj):
+        """Get number of completed tasks"""
+        return obj.tasks.filter(status='done').count()
 

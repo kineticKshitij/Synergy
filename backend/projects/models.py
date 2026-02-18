@@ -85,6 +85,11 @@ class Task(models.Model):
     estimated_hours = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
     actual_hours = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
     
+    # Sprint tracking
+    story_points = models.IntegerField(null=True, blank=True, help_text="Story points for sprint planning (1-13)")
+    sprint = models.ForeignKey('Sprint', on_delete=models.SET_NULL, null=True, blank=True, 
+                               related_name='tasks', help_text="Sprint this task belongs to")
+    
     # Time tracking
     time_logs = models.JSONField(default=list, blank=True, 
                                  help_text="Array of time log entries {user_id, start_time, end_time, duration_minutes, note}")
@@ -196,6 +201,66 @@ class Subtask(models.Model):
         elif not self.is_completed and self.completed_at:
             self.completed_at = None
             self.completed_by = None
+        super().save(*args, **kwargs)
+
+
+class Sprint(models.Model):
+    """Sprint model for agile sprint planning"""
+    
+    STATUS_CHOICES = [
+        ('planning', 'Planning'),
+        ('active', 'Active'),
+        ('completed', 'Completed'),
+    ]
+    
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='sprints')
+    name = models.CharField(max_length=200, help_text="Sprint name (e.g., Sprint 1, Q1 Sprint)")
+    goal = models.TextField(blank=True, help_text="Sprint goal or objective")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='planning')
+    
+    start_date = models.DateField(null=True, blank=True)
+    end_date = models.DateField(null=True, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        unique_together = [['project', 'name']]  # Unique sprint names per project
+    
+    def __str__(self):
+        return f"{self.name} ({self.project.name})"
+    
+    def get_total_points(self):
+        """Get total story points in this sprint"""
+        return self.tasks.filter(story_points__isnull=False).aggregate(
+            total=models.Sum('story_points')
+        )['total'] or 0
+    
+    def get_completed_points(self):
+        """Get completed story points in this sprint"""
+        return self.tasks.filter(
+            status='done', 
+            story_points__isnull=False
+        ).aggregate(
+            total=models.Sum('story_points')
+        )['total'] or 0
+    
+    def get_completion_percentage(self):
+        """Calculate sprint completion percentage based on story points"""
+        total = self.get_total_points()
+        if total == 0:
+            return 0
+        completed = self.get_completed_points()
+        return round((completed / total) * 100, 1)
+    
+    def save(self, *args, **kwargs):
+        """Mark completion timestamp when sprint is completed"""
+        if self.status == 'completed' and not self.completed_at:
+            self.completed_at = timezone.now()
+        elif self.status != 'completed' and self.completed_at:
+            self.completed_at = None
         super().save(*args, **kwargs)
 
 

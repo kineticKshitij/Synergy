@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { 
     Plus, 
     Calendar, 
@@ -13,7 +13,8 @@ import {
     Edit2,
     Trash2,
     ChevronDown,
-    ChevronUp
+    ChevronUp,
+    Loader2
 } from 'lucide-react';
 
 interface Task {
@@ -23,17 +24,25 @@ interface Task {
     priority: string;
     story_points?: number;
     assigned_to?: { id: number; username: string };
-    sprint_id?: number;
+    sprint?: number;
 }
 
 interface Sprint {
     id: number;
+    project: number;
     name: string;
     goal: string;
     start_date: string;
     end_date: string;
     status: 'planning' | 'active' | 'completed';
+    total_points: number;
+    completed_points: number;
+    completion_percentage: number;
+    task_count: number;
+    completed_task_count: number;
     created_at: string;
+    updated_at: string;
+    completed_at?: string;
 }
 
 interface SprintPlanningBoardProps {
@@ -49,31 +58,12 @@ export default function SprintPlanningBoard({
     onTaskUpdate,
     onOpenTask 
 }: SprintPlanningBoardProps) {
-    const [sprints, setSprints] = useState<Sprint[]>([
-        // Mock data - in production, fetch from API
-        {
-            id: 1,
-            name: 'Sprint 1',
-            goal: 'Complete core features and setup infrastructure',
-            start_date: '2026-02-01',
-            end_date: '2026-02-14',
-            status: 'completed',
-            created_at: '2026-01-28',
-        },
-        {
-            id: 2,
-            name: 'Sprint 2',
-            goal: 'Implement user dashboard and reporting features',
-            start_date: '2026-02-15',
-            end_date: '2026-02-28',
-            status: 'active',
-            created_at: '2026-02-12',
-        },
-    ]);
-    
+    const [sprints, setSprints] = useState<Sprint[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [showCreateSprint, setShowCreateSprint] = useState(false);
-    const [selectedSprintId, setSelectedSprintId] = useState<number | null>(2);
-    const [expandedSprints, setExpandedSprints] = useState<Set<number>>(new Set([2]));
+    const [selectedSprintId, setSelectedSprintId] = useState<number | null>(null);
+    const [expandedSprints, setExpandedSprints] = useState<Set<number>>(new Set());
     const [newSprint, setNewSprint] = useState({
         name: '',
         goal: '',
@@ -81,14 +71,67 @@ export default function SprintPlanningBoard({
         end_date: '',
     });
 
+    // Fetch sprints on mount
+    useEffect(() => {
+        fetchSprints();
+    }, [projectId]);
+
+    // Set active sprint as selected by default
+    useEffect(() => {
+        const activeSprint = sprints.find(s => s.status === 'active');
+        if (activeSprint && !selectedSprintId) {
+            setSelectedSprintId(activeSprint.id);
+            setExpandedSprints(new Set([activeSprint.id]));
+        }
+    }, [sprints]);
+
+    const fetchSprints = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const token = localStorage.getItem('access_token');
+            const response = await fetch(`http://localhost/api/sprints/?project=${projectId}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                setSprints(data);
+            } else {
+                setError('Failed to load sprints');
+            }
+        } catch (err) {
+            console.error('Error fetching sprints:', err);
+            setError('Failed to load sprints');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const activeSprint = sprints.find(s => s.status === 'active');
-    const backlogTasks = tasks.filter(t => !t.sprint_id);
+    const backlogTasks = tasks.filter(t => !t.sprint);
 
     const getSprintTasks = (sprintId: number) => {
-        return tasks.filter(t => t.sprint_id === sprintId);
+        return tasks.filter(t => t.sprint === sprintId);
     };
 
     const getSprintStats = (sprintId: number) => {
+        const sprint = sprints.find(s => s.id === sprintId);
+        if (sprint) {
+            return {
+                totalPoints: sprint.total_points,
+                completedPoints: sprint.completed_points,
+                totalTasks: sprint.task_count,
+                completedTasks: sprint.completed_task_count,
+                velocity: sprint.completed_points,
+                completion: sprint.completion_percentage,
+            };
+        }
+        
+        // Fallback to calculating from tasks
         const sprintTasks = getSprintTasks(sprintId);
         const totalPoints = sprintTasks.reduce((sum, t) => sum + (t.story_points || 0), 0);
         const completedPoints = sprintTasks
@@ -102,52 +145,128 @@ export default function SprintPlanningBoard({
             completedPoints,
             totalTasks,
             completedTasks,
-            velocity: completedPoints, // Simplified velocity calculation
+            velocity: completedPoints,
             completion: totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0,
         };
     };
 
-    const handleCreateSprint = () => {
+    const handleCreateSprint = async () => {
         if (!newSprint.name || !newSprint.start_date || !newSprint.end_date) {
             alert('Please fill in all required fields');
             return;
         }
 
-        const sprint: Sprint = {
-            id: Date.now(),
-            name: newSprint.name,
-            goal: newSprint.goal,
-            start_date: newSprint.start_date,
-            end_date: newSprint.end_date,
-            status: 'planning',
-            created_at: new Date().toISOString(),
-        };
+        try {
+            const token = localStorage.getItem('access_token');
+            const response = await fetch('http://localhost/api/sprints/', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    project: projectId,
+                    ...newSprint,
+                }),
+            });
 
-        setSprints([...sprints, sprint]);
-        setNewSprint({ name: '', goal: '', start_date: '', end_date: '' });
-        setShowCreateSprint(false);
+            if (response.ok) {
+                const sprint = await response.json();
+                setSprints([...sprints, sprint]);
+                setNewSprint({ name: '', goal: '', start_date: '', end_date: '' });
+                setShowCreateSprint(false);
+            } else {
+                const errorData = await response.json();
+                alert(errorData.error || 'Failed to create sprint');
+            }
+        } catch (err) {
+            console.error('Error creating sprint:', err);
+            alert('Failed to create sprint');
+        }
     };
 
-    const handleStartSprint = (sprintId: number) => {
-        setSprints(sprints.map(s => 
-            s.id === sprintId 
-                ? { ...s, status: 'active' as const }
-                : s.status === 'active' 
-                    ? { ...s, status: 'completed' as const }
-                    : s
-        ));
+    const handleStartSprint = async (sprintId: number) => {
+        try {
+            const token = localStorage.getItem('access_token');
+            const response = await fetch(`http://localhost/api/sprints/${sprintId}/start_sprint/`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (response.ok) {
+                const updatedSprint = await response.json();
+                setSprints(sprints.map(s => 
+                    s.id === sprintId ? updatedSprint : s
+                ));
+            } else {
+                const errorData = await response.json();
+                alert(errorData.error || 'Failed to start sprint');
+            }
+        } catch (err) {
+            console.error('Error starting sprint:', err);
+            alert('Failed to start sprint');
+        }
     };
 
-    const handleCompleteSprint = (sprintId: number) => {
-        setSprints(sprints.map(s => 
-            s.id === sprintId ? { ...s, status: 'completed' as const } : s
-        ));
+    const handleCompleteSprint = async (sprintId: number) => {
+        if (!confirm('Complete this sprint? Incomplete tasks will be moved to backlog.')) {
+            return;
+        }
+
+        try {
+            const token = localStorage.getItem('access_token');
+            const response = await fetch(`http://localhost/api/sprints/${sprintId}/complete_sprint/`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (response.ok) {
+                const updatedSprint = await response.json();
+                setSprints(sprints.map(s => 
+                    s.id === sprintId ? updatedSprint : s
+                ));
+                // Refresh tasks to reflect backlog changes
+                window.location.reload();
+            } else {
+                const errorData = await response.json();
+                alert(errorData.error || 'Failed to complete sprint');
+            }
+        } catch (err) {
+            console.error('Error completing sprint:', err);
+            alert('Failed to complete sprint');
+        }
     };
 
-    const handleDeleteSprint = (sprintId: number) => {
-        if (confirm('Are you sure you want to delete this sprint? Tasks will be moved to backlog.')) {
-            setSprints(sprints.filter(s => s.id !== sprintId));
-            // In production, also update tasks to remove sprint_id
+    const handleDeleteSprint = async (sprintId: number) => {
+        if (!confirm('Are you sure you want to delete this sprint? Tasks will be moved to backlog.')) {
+            return;
+        }
+
+        try {
+            const token = localStorage.getItem('access_token');
+            const response = await fetch(`http://localhost/api/sprints/${sprintId}/`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (response.ok) {
+                setSprints(sprints.filter(s => s.id !== sprintId));
+            } else {
+                const errorData = await response.json();
+                alert(errorData.error || 'Failed to delete sprint');
+            }
+        } catch (err) {
+            console.error('Error deleting sprint:', err);
+            alert('Failed to delete sprint');
         }
     };
 
@@ -162,11 +281,13 @@ export default function SprintPlanningBoard({
     };
 
     const handleAddTaskToSprint = async (taskId: number, sprintId: number) => {
-        await onTaskUpdate(taskId, { sprint_id: sprintId });
+        await onTaskUpdate(taskId, { sprint: sprintId });
+        await fetchSprints(); // Refresh to update stats
     };
 
     const handleRemoveTaskFromSprint = async (taskId: number) => {
-        await onTaskUpdate(taskId, { sprint_id: null });
+        await onTaskUpdate(taskId, { sprint: null });
+        await fetchSprints(); // Refresh to update stats
     };
 
     const getStatusColor = (status: string) => {
@@ -338,6 +459,30 @@ export default function SprintPlanningBoard({
             </div>
         );
     };
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="text-center py-12">
+                <p className="text-red-600 dark:text-red-400 mb-4">
+                    {error}
+                </p>
+                <button
+                    onClick={fetchSprints}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors"
+                >
+                    Try Again
+                </button>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">

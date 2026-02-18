@@ -1,5 +1,23 @@
-import { useState } from 'react';
-import { X, Send, AtSign, Paperclip, Smile, Image as ImageIcon } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { X, Send, AtSign, Paperclip, Smile, Image as ImageIcon, Loader2 } from 'lucide-react';
+
+interface User {
+    id: number;
+    username: string;
+    email: string;
+    first_name: string;
+    last_name: string;
+    full_name: string;
+}
+
+interface Comment {
+    id: number;
+    task: number;
+    user: User;
+    content: string;
+    created_at: string;
+    updated_at: string;
+}
 
 interface TaskCommentsPanelProps {
     taskId: number;
@@ -9,37 +27,76 @@ interface TaskCommentsPanelProps {
 
 export function TaskCommentsPanel({ taskId, isOpen, onClose }: TaskCommentsPanelProps) {
     const [comment, setComment] = useState('');
-    const [comments, setComments] = useState<any[]>([
-        {
-            id: 1,
-            author: 'John Doe',
-            avatar: null,
-            content: 'This looks good! Let me know when you finish the design mockups.',
-            timestamp: '2024-01-15T10:30:00Z',
-        },
-        {
-            id: 2,
-            author: 'Jane Smith',
-            avatar: null,
-            content: '@JohnDoe The mockups are ready for review in Figma.',
-            timestamp: '2024-01-15T14:45:00Z',
-        },
-    ]);
+    const [comments, setComments] = useState<Comment[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    // Fetch comments when panel opens
+    useEffect(() => {
+        if (isOpen && taskId) {
+            fetchComments();
+        }
+    }, [isOpen, taskId]);
+
+    const fetchComments = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const token = localStorage.getItem('access_token');
+            const response = await fetch(`http://localhost/api/tasks/${taskId}/get_comments/`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                setComments(data);
+            } else {
+                setError('Failed to load comments');
+            }
+        } catch (err) {
+            console.error('Error fetching comments:', err);
+            setError('Failed to load comments');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!comment.trim()) return;
+        if (!comment.trim() || submitting) return;
 
-        const newComment = {
-            id: Date.now(),
-            author: 'Current User',
-            avatar: null,
-            content: comment,
-            timestamp: new Date().toISOString(),
-        };
+        setSubmitting(true);
+        setError(null);
 
-        setComments([...comments, newComment]);
-        setComment('');
+        try {
+            const token = localStorage.getItem('access_token');
+            const response = await fetch(`http://localhost/api/tasks/${taskId}/add_comment/`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ content: comment }),
+            });
+
+            if (response.ok) {
+                const newComment = await response.json();
+                setComments([...comments, newComment]);
+                setComment('');
+            } else {
+                const errorData = await response.json();
+                setError(errorData.error || 'Failed to post comment');
+            }
+        } catch (err) {
+            console.error('Error posting comment:', err);
+            setError('Failed to post comment');
+        } finally {
+            setSubmitting(false);
+        }
     };
 
     const formatTimestamp = (timestamp: string) => {
@@ -76,7 +133,23 @@ export function TaskCommentsPanel({ taskId, isOpen, onClose }: TaskCommentsPanel
 
             {/* Comments List */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                {comments.length === 0 ? (
+                {loading ? (
+                    <div className="flex items-center justify-center py-12">
+                        <Loader2 className="w-6 h-6 text-blue-600 animate-spin" />
+                    </div>
+                ) : error ? (
+                    <div className="text-center py-12">
+                        <p className="text-sm text-red-600 dark:text-red-400 mb-2">
+                            {error}
+                        </p>
+                        <button
+                            onClick={fetchComments}
+                            className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400"
+                        >
+                            Try again
+                        </button>
+                    </div>
+                ) : comments.length === 0 ? (
                     <div className="text-center py-12">
                         <p className="text-sm text-slate-500 dark:text-slate-400">
                             No comments yet. Start the conversation!
@@ -87,31 +160,25 @@ export function TaskCommentsPanel({ taskId, isOpen, onClose }: TaskCommentsPanel
                         <div key={item.id} className="flex gap-3">
                             {/* Avatar */}
                             <div className="flex-shrink-0">
-                                {item.avatar ? (
-                                    <img
-                                        src={item.avatar}
-                                        alt={item.author}
-                                        className="w-8 h-8 rounded-full"
-                                    />
-                                ) : (
-                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-xs font-semibold">
-                                        {item.author
+                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-xs font-semibold">
+                                    {item.user.full_name
+                                        ? item.user.full_name
                                             .split(' ')
                                             .map((n: string) => n[0])
                                             .join('')
-                                            .toUpperCase()}
-                                    </div>
-                                )}
+                                            .toUpperCase()
+                                        : item.user.username.substring(0, 2).toUpperCase()}
+                                </div>
                             </div>
 
                             {/* Content */}
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-baseline gap-2 mb-1">
                                     <span className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-                                        {item.author}
+                                        {item.user.full_name || item.user.username}
                                     </span>
                                     <span className="text-xs text-slate-500 dark:text-slate-400">
-                                        {formatTimestamp(item.timestamp)}
+                                        {formatTimestamp(item.created_at)}
                                     </span>
                                 </div>
                                 <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap break-words">
@@ -172,11 +239,21 @@ export function TaskCommentsPanel({ taskId, isOpen, onClose }: TaskCommentsPanel
 
                     <button
                         type="submit"
-                        disabled={!comment.trim()}
+                        disabled={!comment.trim() || submitting}
                         className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        <Send className="w-4 h-4" />
-                        Send
+                        {submitting ? (
+                            <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                Sending...
+                            </>
+                        ) : (
+                            <>
+                                <Send className="w-4 h-4" />
+                                Send
+                            </>
+                        )}
+                    </button>
                     </button>
                 </div>
             </form>

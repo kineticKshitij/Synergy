@@ -7,13 +7,13 @@ from django.shortcuts import get_object_or_404
 from django.contrib.auth.models import User
 from django.db import models
 
-from .models import Project, Task, Comment, ProjectActivity, TaskAttachment, ProjectMessage, Subtask
+from .models import Project, Task, Comment, ProjectActivity, TaskAttachment, ProjectMessage, Subtask, Sprint
 from .serializers import (
     ProjectSerializer, TaskSerializer, CommentSerializer,
     ProjectActivitySerializer, TaskAttachmentSerializer,
     ProjectMessageSerializer, TeamMemberDashboardSerializer,
     MilestoneSerializer, ProjectTemplateSerializer, TaskTemplateSerializer,
-    MilestoneTemplateSerializer, SubtaskSerializer
+    MilestoneTemplateSerializer, SubtaskSerializer, SprintSerializer
 )
 
 
@@ -212,6 +212,14 @@ class TaskViewSet(viewsets.ModelViewSet):
             action='task_updated',
             description=f'Updated task: {task.title}'
         )
+    
+    @action(detail=True, methods=['get'])
+    def get_comments(self, request, pk=None):
+        """Get all comments for a task"""
+        task = self.get_object()
+        comments = task.comments.all().order_by('created_at')
+        serializer = CommentSerializer(comments, many=True)
+        return Response(serializer.data)
     
     @action(detail=True, methods=['post'])
     def add_comment(self, request, pk=None):
@@ -1804,5 +1812,192 @@ class MilestoneTemplateViewSet(viewsets.ModelViewSet):
             models.Q(project_template__is_public=True) | 
             models.Q(project_template__created_by=user)
         ).distinct().select_related('project_template')
+
+
+class SprintViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for Sprint CRUD operations and sprint management
+    """
+    serializer_class = SprintSerializer
+    permission_classes = [IsAuthenticated, IsProjectOwner]
+    
+    def get_queryset(self):
+        """Only return sprints from projects user has access to"""
+        user = self.request.user
+        queryset = Sprint.objects.filter(
+            models.Q(project__owner=user) | models.Q(project__team_members=user)
+        ).distinct().select_related('project')
+        
+        # Filter by project if provided
+        project_id = self.request.query_params.get('project', None)
+        if project_id is not None:
+            queryset = queryset.filter(project_id=project_id)
+        
+        # Filter by status if provided
+        status_filter = self.request.query_params.get('status', None)
+        if status_filter is not None:
+            queryset = queryset.filter(status=status_filter)
+        
+        return queryset.order_by('-created_at')
+    
+    def perform_create(self, serializer):
+        """Log sprint creation (owner only)"""
+        sprint = serializer.save()
+        
+        # Check if user is project owner
+        if sprint.project.owner != self.request.user:
+            return Response(
+                {'error': 'Only the project owner can create sprints'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        ProjectActivity.objects.create(
+            project=sprint.project,
+            user=self.request.user,
+            action='sprint_created',
+            description=f'Created sprint: {sprint.name}'
+        )
+    
+    @action(detail=True, methods=['post'])
+    def start_sprint(self, request, pk=None):
+        """Start a sprint (change status to active)"""
+        sprint = self.get_object()
+        
+        # Check if user is project owner
+        if sprint.project.owner != request.user:
+            return Response(
+                {'error': 'Only the project owner can start sprints'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Check if there's already an active sprint
+        active_sprints = Sprint.objects.filter(
+            project=sprint.project,
+            status='active'
+        ).exclude(id=sprint.id)
+        
+        if active_sprints.exists():
+            return Response(
+                {'error': 'Another sprint is already active. Complete it first.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        sprint.status = 'active'
+        sprint.save()
+        
+        ProjectActivity.objects.create(
+            project=sprint.project,
+            user=request.user,
+            action='sprint_started',
+            description=f'Started sprint: {sprint.name}'
+        )
+        
+        serializer = self.get_serializer(sprint)
+        return Response(serializer.data)
+    
+    @action(detail=True, methods=['post'])
+    def complete_sprint(self, request, pk=None):
+        """Complete a sprint (change status to completed)"""
+        sprint = self.get_object()
+        
+        # Check if user is project owner
+        if sprint.project.owner != request.user:
+            return Response(
+                {'error': 'Only the project owner can complete sprints'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        sprint.status = 'completed'
+        sprint.save()
+        
+        # Move incomplete tasks back to backlog (remove sprint assignment)
+        incomplete_tasks = sprint.tasks.exclude(status='done')
+        incomplete_tasks.update(sprint=None)
+        
+        ProjectActivity.objects.create(
+            project=sprint.project,
+            user=request.user,
+            action='sprint_completed',
+            description=f'Completed sprint: {sprint.name}',
+            metadata={
+                'total_points': sprint.get_total_points(),
+                'completed_points': sprint.get_completed_points(),
+                'completion_percentage': sprint.get_completion_percentage(),
+                'incomplete_tasks_count': incomplete_tasks.count()
+            }
+        )
+        
+        serializer = self.get_serializer(sprint)
+        return Response(serializer.data)
+    
+    @action(detail=True, methods=['get'])
+    def tasks(self, request, pk=None):
+        """Get all tasks in this sprint"""
+        sprint = self.get_object()
+        tasks = sprint.tasks.all()
+        serializer = TaskSerializer(tasks, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=True, methods=['post'])
+    def add_task(self, request, pk=None):
+        """Add a task to this sprint"""
+        sprint = self.get_object()
+        task_id = request.data.get('task_id')
+        
+        if not task_id:
+            return Response(
+                {'error': 'task_id is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            task = Task.objects.get(id=task_id, project=sprint.project)
+            
+            # Check if task is already in another active sprint
+            if task.sprint and task.sprint.status == 'active' and task.sprint.id != sprint.id:
+                return Response(
+                    {'error': f'Task is already in active sprint: {task.sprint.name}'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            task.sprint = sprint
+            task.save()
+            
+            return Response(
+                {'message': f'Task added to sprint: {sprint.name}'},
+                status=status.HTTP_200_OK
+            )
+        except Task.DoesNotExist:
+            return Response(
+                {'error': 'Task not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+    
+    @action(detail=True, methods=['post'])
+    def remove_task(self, request, pk=None):
+        """Remove a task from this sprint"""
+        sprint = self.get_object()
+        task_id = request.data.get('task_id')
+        
+        if not task_id:
+            return Response(
+                {'error': 'task_id is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            task = Task.objects.get(id=task_id, sprint=sprint)
+            task.sprint = None
+            task.save()
+            
+            return Response(
+                {'message': 'Task removed from sprint'},
+                status=status.HTTP_200_OK
+            )
+        except Task.DoesNotExist:
+            return Response(
+                {'error': 'Task not found in this sprint'},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
 
