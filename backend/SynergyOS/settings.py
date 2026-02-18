@@ -28,7 +28,11 @@ SECRET_KEY = config('SECRET_KEY')
 DEBUG = config('DEBUG', default=False, cast=bool)
 FORCE_SSL = config('FORCE_SSL', default=not DEBUG, cast=bool)
 
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=Csv())
+# Allow local network access in development
+if DEBUG:
+    ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='*', cast=Csv())
+else:
+    ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=Csv())
 
 
 # Application definition
@@ -169,7 +173,11 @@ MEDIA_ROOT = BASE_DIR / 'media'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # CORS Settings
-CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', default='http://localhost:5173', cast=Csv())
+if DEBUG:
+    CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', default='http://localhost,http://127.0.0.1,http://192.168.1.191', cast=Csv())
+    CORS_ALLOW_ALL_ORIGINS = False  # Use explicit origins even in DEBUG
+else:
+    CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', default='http://localhost:5173', cast=Csv())
 CORS_ALLOW_CREDENTIALS = True
 
 # REST Framework Settings
@@ -229,7 +237,10 @@ SECURE_REFERRER_POLICY = 'same-origin'
 CSRF_COOKIE_HTTPONLY = True
 CSRF_COOKIE_SECURE = FORCE_SSL  # Match secure cookie usage with SSL enforcement
 CSRF_COOKIE_SAMESITE = 'Lax'
-CSRF_TRUSTED_ORIGINS = config('CSRF_TRUSTED_ORIGINS', default='http://localhost:5173,http://127.0.0.1:5173', cast=Csv())
+if DEBUG:
+    CSRF_TRUSTED_ORIGINS = config('CSRF_TRUSTED_ORIGINS', default='http://localhost,http://127.0.0.1,http://192.168.1.191', cast=Csv())
+else:
+    CSRF_TRUSTED_ORIGINS = config('CSRF_TRUSTED_ORIGINS', default='http://localhost:5173,http://127.0.0.1:5173', cast=Csv())
 
 # Session Security
 SESSION_COOKIE_HTTPONLY = True
