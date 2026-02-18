@@ -251,11 +251,11 @@ function ReportsContent() {
                         </p>
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 flex-wrap">
                         <select
                             value={dateRange}
                             onChange={(e) => setDateRange(e.target.value)}
-                            className="px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-900 dark:text-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-full sm:w-auto px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-900 dark:text-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
                         >
                             <option value="7">Last 7 days</option>
                             <option value="30">Last 30 days</option>
@@ -264,17 +264,19 @@ function ReportsContent() {
                         </select>
                         <button
                             onClick={() => exportReport('pdf', 'team')}
-                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                            className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors w-full sm:w-auto"
                         >
                             <Download className="w-4 h-4" />
-                            Team PDF
+                            <span className="hidden sm:inline">Team PDF</span>
+                            <span className="sm:hidden">PDF</span>
                         </button>
                         <button
                             onClick={() => exportReport('csv', 'time')}
-                            className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-900 dark:text-slate-50 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                            className="flex items-center justify-center gap-2 px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-900 dark:text-slate-50 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors w-full sm:w-auto"
                         >
                             <Download className="w-4 h-4" />
-                            Time CSV
+                            <span className="hidden sm:inline">Time CSV</span>
+                            <span className="sm:hidden">CSV</span>
                         </button>
                     </div>
                 </div>

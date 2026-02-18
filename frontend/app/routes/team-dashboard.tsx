@@ -187,12 +187,12 @@ export default function TeamDashboard() {
             {/* Header */}
             <div className="bg-white dark:bg-gray-800 shadow pt-24">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-6 space-y-4">
-                    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                    <div className="flex flex-col gap-3 md:gap-4">
                         <div>
-                            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+                            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
                                 Team Member Dashboard
                             </h1>
-                            <p className="text-gray-600 dark:text-gray-400 mt-1">
+                            <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-1">
                                 Welcome back, {user?.first_name || user?.username}!
                             </p>
                         </div>

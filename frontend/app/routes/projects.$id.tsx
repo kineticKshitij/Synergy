@@ -397,50 +397,50 @@ function ProjectDetailsContent() {
 
             {/* Header */}
             <div className="border-b border-gray-800 pt-20">
-                <div className="max-w-7xl mx-auto px-6 py-6">
-                    <div className="flex items-center justify-between mb-4">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 md:py-6">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-3">
                         <Link
                             to="/projects"
-                            className="text-gray-400 hover:text-white transition-colors flex items-center gap-2"
+                            className="text-gray-400 hover:text-white transition-colors flex items-center gap-2 text-sm md:text-base"
                         >
                             ← Back to Projects
                         </Link>
-                        <div className="flex gap-3">
+                        <div className="flex flex-wrap gap-2 md:gap-3 w-full sm:w-auto">
                             <button
                                 onClick={() => setShowMeetingNotesModal(true)}
-                                className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-lg transition-all transform hover:scale-105 flex items-center gap-2"
+                                className="flex-1 sm:flex-none px-3 md:px-4 py-2 text-sm md:text-base bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-lg transition-all flex items-center justify-center gap-2"
                                 title="Extract tasks from meeting notes"
                             >
-                                📝 Meeting Notes
+                                📝 <span className="hidden sm:inline">Meeting Notes</span>
                             </button>
                             {project.status !== 'completed' && (
                                 <button
                                     onClick={handleMarkProjectComplete}
-                                    className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition-colors"
+                                    className="flex-1 sm:flex-none px-3 md:px-4 py-2 text-sm md:text-base bg-green-600 hover:bg-green-700 rounded-lg transition-colors"
                                 >
-                                    ✅ Mark as Completed
+                                    ✅ <span className="hidden sm:inline">Complete</span>
                                 </button>
                             )}
                             <button
                                 onClick={() => navigate(`/projects/${id}/edit`)}
-                                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                                className="flex-1 sm:flex-none px-3 md:px-4 py-2 text-sm md:text-base bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
                             >
-                                ✏️ Edit
+                                ✏️ <span className="hidden sm:inline">Edit</span>
                             </button>
                             <button
                                 onClick={handleDeleteProject}
-                                className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
+                                className="flex-1 sm:flex-none px-3 md:px-4 py-2 text-sm md:text-base bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
                             >
-                                🗑️ Delete
+                                🗑️ <span className="hidden sm:inline">Delete</span>
                             </button>
                         </div>
                     </div>
 
                     <div className="flex items-start justify-between">
                         <div className="flex-1">
-                            <h1 className="text-4xl font-bold mb-3">{project.name}</h1>
-                            <p className="text-gray-400 text-lg mb-4">{project.description}</p>
-                            <div className="flex items-center gap-4">
+                            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2 md:mb-3">{project.name}</h1>
+                            <p className="text-gray-400 text-sm sm:text-base md:text-lg mb-3 md:mb-4">{project.description}</p>
+                            <div className="flex flex-wrap items-center gap-3 md:gap-4">
                                 {getStatusBadge(project.status)}
                                 <span className={`font-medium ${getPriorityColor(project.priority)}`}>
                                     Priority: {project.priority.charAt(0).toUpperCase() + project.priority.slice(1)}
@@ -471,9 +471,9 @@ function ProjectDetailsContent() {
             </div>
 
             {/* Tabs */}
-            <div className="border-b border-gray-800">
-                <div className="max-w-7xl mx-auto px-6">
-                    <div className="flex gap-8">
+            <div className="border-b border-gray-800 overflow-x-auto">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6">
+                    <div className="flex gap-4 md:gap-8 min-w-max md:min-w-0">
                         {[
                             { key: 'overview', label: 'Overview' },
                             { key: 'tasks', label: 'Tasks' },
@@ -486,7 +486,7 @@ function ProjectDetailsContent() {
                             <button
                                 key={tab.key}
                                 onClick={() => setActiveTab(tab.key as any)}
-                                className={`py-4 px-2 border-b-2 transition-colors flex items-center gap-2 ${activeTab === tab.key
+                                className={`py-3 md:py-4 px-2 border-b-2 transition-colors flex items-center gap-2 text-sm md:text-base whitespace-nowrap ${activeTab === tab.key
                                     ? 'border-blue-500 text-white'
                                     : 'border-transparent text-gray-400 hover:text-white'
                                     }`}

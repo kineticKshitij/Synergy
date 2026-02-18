@@ -219,7 +219,7 @@ export default function KanbanBoard() {
           {/* Filters */}
           {showFilters && (
             <div className="mt-6 p-5 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-200 shadow-sm">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-5">
                 <div>
                   <label className="block text-sm font-semibold text-gray-800 mb-2">
                     <span className="flex items-center gap-2">
@@ -296,7 +296,7 @@ export default function KanbanBoard() {
       {/* Kanban Board */}
       <div className="max-w-[1920px] mx-auto px-6 py-8">
         <DragDropContext onDragEnd={handleDragEnd}>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
             {Object.entries(COLUMNS).map(([status, { title, color, headerBg }]) => {
               const columnTasks = getTasksByStatus(status as Task['status']);
               

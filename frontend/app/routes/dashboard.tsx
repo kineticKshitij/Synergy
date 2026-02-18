@@ -86,18 +86,18 @@ function DashboardContent() {
             <Navbar />
 
             {/* Hero Section - Welcome */}
-            <div className="pt-20 pb-12 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 dark:from-blue-900 dark:via-indigo-900 dark:to-purple-900 shadow-xl">
+            <div className="pt-20 pb-8 md:pb-12 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 dark:from-blue-900 dark:via-indigo-900 dark:to-purple-900 shadow-xl">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                    <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 md:gap-6">
                         <div className="flex-1">
-                            <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-white/90 text-xs font-medium mb-4">
+                            <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-white/90 text-xs font-medium mb-3">
                                 <Sparkles className="w-3 h-3" />
                                 Powered by AI
                             </div>
-                            <h1 className="text-4xl md:text-5xl font-bold text-white mb-3">
+                            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-2 md:mb-3">
                                 Welcome back, {user?.username || 'User'} 👋
                             </h1>
-                            <p className="text-blue-100 text-lg max-w-2xl">
+                            <p className="text-blue-100 text-sm sm:text-base md:text-lg max-w-2xl">
                                 Your workspace is performing excellently today. Here's what needs your attention.
                             </p>
                         </div>
@@ -123,9 +123,9 @@ function DashboardContent() {
                 </div>
             </div>
 
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8 pb-12">
+            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8 pb-8 md:pb-12">
                 {/* Main Stats Cards - Prominent */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6 md:mb-8">
                     <StatsCard
                         title="Active Projects"
                         value={stats?.stats.total_projects || 0}
@@ -168,7 +168,7 @@ function DashboardContent() {
                 </div>
 
                 {/* Quick Actions Bar */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6 md:mb-8">
                     <QuickActionCard
                         title="Add Task"
                         icon={<Plus className="w-5 h-5" />}

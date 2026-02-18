@@ -156,17 +156,17 @@ function ProjectsContent() {
 
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pt-24">
                 {/* Header */}
-                <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div className="mb-6 flex flex-col gap-4">
                     <div>
-                        <h1 className="text-3xl md:text-4xl font-bold text-slate-900 dark:text-slate-50 mb-2">
+                        <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-slate-900 dark:text-slate-50 mb-2">
                             Projects
                         </h1>
-                        <p className="text-slate-600 dark:text-slate-400">
+                        <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400">
                             Manage and track your projects
                         </p>
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                         {/* View Mode Toggle */}
                         <div className="flex items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-1">
                             <button
@@ -206,10 +206,11 @@ function ProjectsContent() {
 
                         <button
                             onClick={() => navigate('/projects/new')}
-                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+                            className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
                         >
                             <Plus className="w-5 h-5" />
-                            New Project
+                            <span className="hidden sm:inline">New Project</span>
+                            <span className="sm:hidden">New</span>
                         </button>
                     </div>
                 </div>
