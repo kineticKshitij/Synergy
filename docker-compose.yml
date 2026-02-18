@@ -49,15 +49,15 @@ services:
     environment:
       - SECRET_KEY=${SECRET_KEY:-django-insecure-change-this-in-production}
       - DEBUG=${DEBUG:-True}
-      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-localhost,127.0.0.1,backend,nginx}
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-*}
       - DB_ENGINE=django.db.backends.postgresql
       - DB_NAME=synergyos
       - DB_USER=synergyos_user
       - DB_PASSWORD=${DB_PASSWORD:-synergyos_pass_2024}
       - DB_HOST=db
       - DB_PORT=5432
-      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-http://localhost,http://localhost:3000,http://localhost:80}
-      - CSRF_TRUSTED_ORIGINS=${CSRF_TRUSTED_ORIGINS:-http://localhost,http://localhost:3000,http://localhost:80}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-http://localhost,http://127.0.0.1,http://192.168.1.191}
+      - CSRF_TRUSTED_ORIGINS=${CSRF_TRUSTED_ORIGINS:-http://localhost,http://127.0.0.1,http://192.168.1.191}
       - JWT_ACCESS_TOKEN_LIFETIME=60
       - JWT_REFRESH_TOKEN_LIFETIME=1440
       - EMAIL_BACKEND=${EMAIL_BACKEND:-django.core.mail.backends.console.EmailBackend}
