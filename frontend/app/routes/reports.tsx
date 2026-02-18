@@ -13,6 +13,9 @@ import {
     Download,
     Calendar,
     Filter,
+    X,
+    CheckCircle,
+    AlertCircle,
 } from 'lucide-react';
 import { KPICard } from '~/components/KPICard';
 import tokenStorage from '~/services/tokenStorage';
@@ -31,6 +34,9 @@ function ReportsContent() {
     const [loading, setLoading] = useState(true);
     const [dateRange, setDateRange] = useState('30'); // days
     const [productivityData, setProductivityData] = useState<any[]>([]);
+    const [activeReport, setActiveReport] = useState<string | null>(null);
+    const [reportData, setReportData] = useState<any>(null);
+    const [loadingReport, setLoadingReport] = useState(false);
 
     useEffect(() => {
         fetchReportData();
@@ -172,6 +178,63 @@ function ReportsContent() {
         }
     };
 
+    const viewDetailedReport = async (reportType: string) => {
+        setActiveReport(reportType);
+        setLoadingReport(true);
+        
+        try {
+            const token = tokenStorage.getAccessToken();
+            if (!token) return;
+
+            const dateTo = new Date();
+            const dateFrom = new Date();
+            dateFrom.setDate(dateTo.getDate() - parseInt(dateRange));
+            const fromStr = dateFrom.toISOString().split('T')[0];
+            const toStr = dateTo.toISOString().split('T')[0];
+
+            let data;
+            
+            if (reportType === 'team') {
+                const response = await fetch(
+                    `http://localhost/api/reports/team/?date_from=${fromStr}&date_to=${toStr}`,
+                    { headers: { Authorization: `Bearer ${token}` } }
+                );
+                data = response.ok ? await response.json() : null;
+            } else if (reportType === 'time') {
+                const response = await fetch(
+                    `http://localhost/api/reports/time_tracking/?date_from=${fromStr}&date_to=${toStr}`,
+                    { headers: { Authorization: `Bearer ${token}` } }
+                );
+                data = response.ok ? await response.json() : null;
+            } else if (reportType === 'ai') {
+                // Fetch AI insights from tasks
+                const response = await fetch('http://localhost/api/tasks/', {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                if (response.ok) {
+                    const tasks = await response.json();
+                    const highRisk = tasks.filter((t: any) => t.priority === 'urgent' || t.priority === 'high');
+                    const overdue = tasks.filter((t: any) => 
+                        t.due_date && new Date(t.due_date) < new Date() && t.status !== 'done'
+                    );
+                    data = {
+                        high_risk_tasks: highRisk.length,
+                        overdue_tasks: overdue.length,
+                        total_tasks: tasks.length,
+                        risk_score: Math.round((highRisk.length / Math.max(tasks.length, 1)) * 100),
+                        tasks: tasks,
+                    };
+                }
+            }
+            
+            setReportData(data);
+        } catch (error) {
+            console.error('Failed to fetch report data:', error);
+        } finally {
+            setLoadingReport(false);
+        }
+    };
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-100 to-slate-200 dark:from-slate-900 dark:via-slate-950 dark:to-black">
             <Navbar />
@@ -270,38 +333,108 @@ function ReportsContent() {
                         description="Completion rates, velocity trends, and budget tracking"
                         icon={<FolderOpen className="w-6 h-6" />}
                         color="blue"
+                        onClick={() => viewDetailedReport('project')}
                     />
                     <ReportCard
                         title="Team Performance"
                         description="Workload distribution, productivity metrics, and capacity"
                         icon={<Users className="w-6 h-6" />}
                         color="purple"
+                        onClick={() => viewDetailedReport('team')}
                     />
                     <ReportCard
                         title="Task Analytics"
                         description="Status distribution, priority analysis, and trends"
                         icon={<CheckSquare className="w-6 h-6" />}
                         color="green"
+                        onClick={() => viewDetailedReport('task')}
                     />
                     <ReportCard
                         title="Time Tracking"
                         description="Hours logged, utilization rates, and breakdowns"
                         icon={<Clock className="w-6 h-6" />}
                         color="orange"
+                        onClick={() => viewDetailedReport('time')}
                     />
                     <ReportCard
                         title="AI Insights"
                         description="Risk analysis trends and prediction accuracy"
                         icon={<TrendingUp className="w-6 h-6" />}
                         color="indigo"
+                        onClick={() => viewDetailedReport('ai')}
                     />
                     <ReportCard
                         title="Custom Reports"
                         description="Build and save custom report configurations"
                         icon={<BarChart3 className="w-6 h-6" />}
                         color="red"
+                        onClick={() => viewDetailedReport('custom')}
                     />
                 </div>
+
+                {/* Detailed Report Modal */}
+                {activeReport && (
+                    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                        <div className="bg-white dark:bg-slate-900 rounded-xl max-w-6xl w-full max-h-[90vh] overflow-y-auto border border-slate-200 dark:border-slate-800 shadow-2xl">
+                            {/* Modal Header */}
+                            <div className="sticky top-0 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 p-6 flex items-center justify-between z-10">
+                                <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-50">
+                                    {activeReport === 'team' && 'Team Performance'}
+                                    {activeReport === 'time' && 'Time Tracking'}
+                                    {activeReport === 'ai' && 'AI Insights'}
+                                    {activeReport === 'project' && 'Project Reports'}
+                                    {activeReport === 'task' && 'Task Analytics'}
+                                    {activeReport === 'custom' && 'Custom Report Builder'}
+                                </h2>
+                                <button
+                                    onClick={() => setActiveReport(null)}
+                                    className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                                >
+                                    <X className="w-6 h-6" />
+                                </button>
+                            </div>
+
+                            {/* Modal Content */}
+                            <div className="p-6">
+                                {loadingReport ? (
+                                    <div className="flex items-center justify-center py-12">
+                                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                                    </div>
+                                ) : (
+                                    <>
+                                        {activeReport === 'team' && reportData && (
+                                            <TeamPerformanceReport data={reportData} onExport={() => exportReport('pdf', 'team')} />
+                                        )}
+                                        {activeReport === 'time' && reportData && (
+                                            <TimeTrackingReport data={reportData} onExport={() => exportReport('csv', 'time')} />
+                                        )}
+                                        {activeReport === 'ai' && reportData && (
+                                            <AIInsightsReport data={reportData} />
+                                        )}
+                                        {activeReport === 'project' && (
+                                            <div className="text-center py-12 text-slate-600 dark:text-slate-400">
+                                                <FolderOpen className="w-16 h-16 mx-auto mb-4" />
+                                                <p>Project Reports view coming soon</p>
+                                            </div>
+                                        )}
+                                        {activeReport === 'task' && (
+                                            <div className="text-center py-12 text-slate-600 dark:text-slate-400">
+                                                <CheckSquare className="w-16 h-16 mx-auto mb-4" />
+                                                <p>Task Analytics view coming soon</p>
+                                            </div>
+                                        )}
+                                        {activeReport === 'custom' && (
+                                            <div className="text-center py-12 text-slate-600 dark:text-slate-400">
+                                                <BarChart3 className="w-16 h-16 mx-auto mb-4" />
+                                                <p>Custom Report Builder coming soon</p>
+                                            </div>
+                                        )}
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Productivity Trends Chart */}
                 <div className="mt-8 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6">
@@ -458,6 +591,314 @@ function ReportCard({ title, description, icon, color, onClick }: ReportCardProp
                 {title}
             </h3>
             <p className="text-sm text-slate-600 dark:text-slate-400">{description}</p>
+        </div>
+    );
+}
+
+// Team Performance Report Component
+function TeamPerformanceReport({ data, onExport }: { data: any; onExport: () => void }) {
+    return (
+        <div className="space-y-6">
+            {/* Export Button */}
+            <div className="flex justify-end">
+                <button
+                    onClick={onExport}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
+                >
+                    <Download className="w-4 h-4" />
+                    Export PDF
+                </button>
+            </div>
+
+            {/* Team Members Table */}
+            <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-6">
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-50 mb-4 flex items-center gap-2">
+                    <Users className="w-5 h-5" />
+                    Team Member Performance
+                </h3>
+                <div className="overflow-x-auto">
+                    <table className="w-full">
+                        <thead>
+                            <tr className="border-b border-slate-200 dark:border-slate-700">
+                                <th className="text-left py-3 px-4 text-sm font-semibold text-slate-900 dark:text-slate-50">Member</th>
+                                <th className="text-center py-3 px-4 text-sm font-semibold text-slate-900 dark:text-slate-50">Tasks Assigned</th>
+                                <th className="text-center py-3 px-4 text-sm font-semibold text-slate-900 dark:text-slate-50">Completed</th>
+                                <th className="text-center py-3 px-4 text-sm font-semibold text-slate-900 dark:text-slate-50">In Progress</th>
+                                <th className="text-center py-3 px-4 text-sm font-semibold text-slate-900 dark:text-slate-50">Completion Rate</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {data.team_members && data.team_members.map((member: any, index: number) => (
+                                <tr key={index} className="border-b border-slate-100 dark:border-slate-700/50">
+                                    <td className="py-3 px-4 text-sm text-slate-900 dark:text-slate-50">{member.name}</td>
+                                    <td className="text-center py-3 px-4 text-sm text-slate-600 dark:text-slate-400">{member.assigned_tasks}</td>
+                                    <td className="text-center py-3 px-4 text-sm text-green-600 dark:text-green-400">{member.completed_tasks}</td>
+                                    <td className="text-center py-3 px-4 text-sm text-blue-600 dark:text-blue-400">{member.in_progress_tasks}</td>
+                                    <td className="text-center py-3 px-4">
+                                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                            member.completion_rate >= 80 ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' :
+                                            member.completion_rate >= 60 ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' :
+                                            'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300'
+                                        }`}>
+                                            {member.completion_rate}%
+                                        </span>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {/* Workload Distribution Chart */}
+            <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-6">
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-50 mb-4 flex items-center gap-2">
+                    <BarChart3 className="w-5 h-5" />
+                    Workload Distribution
+                </h3>
+                <div className="space-y-4">
+                    {data.team_members && data.team_members.map((member: any, index: number) => {
+                        const maxTasks = Math.max(...data.team_members.map((m: any) => m.assigned_tasks));
+                        const widthPercent = maxTasks > 0 ? (member.assigned_tasks / maxTasks) * 100 : 0;
+                        
+                        return (
+                            <div key={index} className="space-y-1">
+                                <div className="flex items-center justify-between text-sm">
+                                    <span className="text-slate-900 dark:text-slate-50 font-medium">{member.name}</span>
+                                    <span className="text-slate-600 dark:text-slate-400">{member.assigned_tasks} tasks</span>
+                                </div>
+                                <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-3">
+                                    <div 
+                                        className="bg-gradient-to-r from-purple-600 to-purple-400 h-3 rounded-full transition-all duration-500"
+                                        style={{ width: `${widthPercent}%` }}
+                                    />
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// Time Tracking Report Component
+function TimeTrackingReport({ data, onExport }: { data: any; onExport: () => void }) {
+    return (
+        <div className="space-y-6">
+            {/* Export Button */}
+            <div className="flex justify-end">
+                <button
+                    onClick={onExport}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors"
+                >
+                    <Download className="w-4 h-4" />
+                    Export CSV
+                </button>
+            </div>
+
+            {/* Summary Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-6">
+                    <div className="flex items-center gap-3 mb-2">
+                        <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
+                            <Clock className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+                        </div>
+                        <h4 className="text-sm font-medium text-slate-600 dark:text-slate-400">Total Hours</h4>
+                    </div>
+                    <div className="text-3xl font-bold text-slate-900 dark:text-slate-50">
+                        {data.total_hours || 0}
+                    </div>
+                </div>
+                
+                <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-6">
+                    <div className="flex items-center gap-3 mb-2">
+                        <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                            <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
+                        </div>
+                        <h4 className="text-sm font-medium text-slate-600 dark:text-slate-400">Billable Hours</h4>
+                    </div>
+                    <div className="text-3xl font-bold text-slate-900 dark:text-slate-50">
+                        {data.billable_hours || 0}
+                    </div>
+                </div>
+                
+                <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-6">
+                    <div className="flex items-center gap-3 mb-2">
+                        <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                            <TrendingUp className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <h4 className="text-sm font-medium text-slate-600 dark:text-slate-400">Utilization Rate</h4>
+                    </div>
+                    <div className="text-3xl font-bold text-slate-900 dark:text-slate-50">
+                        {data.utilization_rate || 0}%
+                    </div>
+                </div>
+            </div>
+
+            {/* Hours by User Table */}
+            <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-6">
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-50 mb-4 flex items-center gap-2">
+                    <Users className="w-5 h-5" />
+                    Hours by Team Member
+                </h3>
+                <div className="overflow-x-auto">
+                    <table className="w-full">
+                        <thead>
+                            <tr className="border-b border-slate-200 dark:border-slate-700">
+                                <th className="text-left py-3 px-4 text-sm font-semibold text-slate-900 dark:text-slate-50">Member</th>
+                                <th className="text-center py-3 px-4 text-sm font-semibold text-slate-900 dark:text-slate-50">Total Hours</th>
+                                <th className="text-center py-3 px-4 text-sm font-semibold text-slate-900 dark:text-slate-50">This Week</th>
+                                <th className="text-center py-3 px-4 text-sm font-semibold text-slate-900 dark:text-slate-50">Avg/Day</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {data.time_entries && data.time_entries.map((entry: any, index: number) => (
+                                <tr key={index} className="border-b border-slate-100 dark:border-slate-700/50">
+                                    <td className="py-3 px-4 text-sm text-slate-900 dark:text-slate-50">{entry.user}</td>
+                                    <td className="text-center py-3 px-4 text-sm text-slate-600 dark:text-slate-400">{entry.total_hours}h</td>
+                                    <td className="text-center py-3 px-4 text-sm text-blue-600 dark:text-blue-400">{entry.weekly_hours}h</td>
+                                    <td className="text-center py-3 px-4 text-sm text-slate-600 dark:text-slate-400">{entry.avg_daily_hours}h</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// AI Insights Report Component
+function AIInsightsReport({ data }: { data: any }) {
+    return (
+        <div className="space-y-6">
+            {/* Risk Overview Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-6">
+                    <div className="flex items-center gap-3 mb-2">
+                        <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
+                            <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
+                        </div>
+                        <h4 className="text-sm font-medium text-slate-600 dark:text-slate-400">High Risk Tasks</h4>
+                    </div>
+                    <div className="text-3xl font-bold text-slate-900 dark:text-slate-50">
+                        {data.high_risk_tasks || 0}
+                    </div>
+                </div>
+
+                <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-6">
+                    <div className="flex items-center gap-3 mb-2">
+                        <div className="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-lg">
+                            <Clock className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                        </div>
+                        <h4 className="text-sm font-medium text-slate-600 dark:text-slate-400">Overdue Tasks</h4>
+                    </div>
+                    <div className="text-3xl font-bold text-slate-900 dark:text-slate-50">
+                        {data.overdue_tasks || 0}
+                    </div>
+                </div>
+
+                <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-6">
+                    <div className="flex items-center gap-3 mb-2">
+                        <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                            <BarChart3 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <h4 className="text-sm font-medium text-slate-600 dark:text-slate-400">Total Tasks</h4>
+                    </div>
+                    <div className="text-3xl font-bold text-slate-900 dark:text-slate-50">
+                        {data.total_tasks || 0}
+                    </div>
+                </div>
+
+                <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-6">
+                    <div className="flex items-center gap-3 mb-2">
+                        <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg">
+                            <TrendingUp className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                        </div>
+                        <h4 className="text-sm font-medium text-slate-600 dark:text-slate-400">Risk Score</h4>
+                    </div>
+                    <div className="text-3xl font-bold text-slate-900 dark:text-slate-50">
+                        {data.risk_score || 0}%
+                    </div>
+                </div>
+            </div>
+
+            {/* High-Risk Tasks List */}
+            <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-6">
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-50 mb-4 flex items-center gap-2">
+                    <AlertCircle className="w-5 h-5 text-red-500" />
+                    High-Risk & Critical Tasks
+                </h3>
+                <div className="space-y-3">
+                    {data.tasks && data.tasks
+                        .filter((task: any) => task.priority === 'urgent' || task.priority === 'high')
+                        .slice(0, 10)
+                        .map((task: any, index: number) => (
+                            <div key={index} className="flex items-center justify-between p-4 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700">
+                                <div className="flex-1">
+                                    <h4 className="font-medium text-slate-900 dark:text-slate-50 mb-1">{task.title}</h4>
+                                    <div className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-400">
+                                        <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
+                                            task.priority === 'urgent' 
+                                                ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300' 
+                                                : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300'
+                                        }`}>
+                                            {task.priority}
+                                        </span>
+                                        <span>{task.status}</span>
+                                        {task.due_date && <span>Due: {new Date(task.due_date).toLocaleDateString()}</span>}
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                </div>
+            </div>
+
+            {/* AI Recommendations */}
+            <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-6">
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-50 mb-4 flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-indigo-500" />
+                    AI-Generated Recommendations
+                </h3>
+                <div className="space-y-3">
+                    {data.high_risk_tasks > 5 && (
+                        <div className="flex gap-3 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                            <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                            <div>
+                                <h4 className="font-medium text-slate-900 dark:text-slate-50 mb-1">High Task Risk Detected</h4>
+                                <p className="text-sm text-slate-600 dark:text-slate-400">
+                                    You have {data.high_risk_tasks} high-priority tasks. Consider redistributing workload or extending deadlines.
+                                </p>
+                            </div>
+                        </div>
+                    )}
+                    
+                    {data.overdue_tasks > 0 && (
+                        <div className="flex gap-3 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                            <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+                            <div>
+                                <h4 className="font-medium text-slate-900 dark:text-slate-50 mb-1">Overdue Tasks Require Attention</h4>
+                                <p className="text-sm text-slate-600 dark:text-slate-400">
+                                    {data.overdue_tasks} task(s) are overdue. Review and update task priorities or deadlines.
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
+                    {data.risk_score < 30 && (
+                        <div className="flex gap-3 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                            <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
+                            <div>
+                                <h4 className="font-medium text-slate-900 dark:text-slate-50 mb-1">Project Health Good</h4>
+                                <p className="text-sm text-slate-600 dark:text-slate-400">
+                                    Your project risk score is low ({data.risk_score}%). Continue current workflow practices.
+                                </p>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
         </div>
     );
 }
